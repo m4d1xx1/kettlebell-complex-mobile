@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Kettlebell Complex",
+    "slug": "kettlebell-complex",
+    "scheme": "kettlebellcomplex",
+    "version": "0.4.2",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "plugins": ["expo-router"],
+    "ios": {"supportsTablet": true,"bundleIdentifier": "com.kettlebellcomplex.mobile"},
+    "android": {"package": "com.kettlebellcomplex.mobile"},
+    "experiments": {"typedRoutes": true}
+  }
+}
