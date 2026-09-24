@@ -255,7 +255,7 @@ export default function WorkoutScreen() {
           <Text style={styles.previewTarget}>{step.value} {step.mode === 'reps' ? t('reps').toLowerCase() : t('sec')}</Text>
           <View style={styles.cueStatus}>
             <Text style={styles.cueStatusText}>
-              {settings.voiceCues ? '●' : '○'} {t('voiceCues')}   {settings.haptics ? '●' : '○'} {t('haptics')}
+              {settings.soundCues ? '●' : '○'} {t('soundCues')}   {settings.voiceCues ? '●' : '○'} {t('voiceCues')}   {settings.haptics ? '●' : '○'} {t('haptics')}
             </Text>
           </View>
         </View>
