@@ -142,3 +142,46 @@ npx eas-cli@latest build --platform ios --profile development
 
 After EAS finishes, open the provided install link/QR code on the registered iPhone.
 An Apple Developer Program membership is required for signing a custom iOS build.
+
+
+## Free iPhone testing with Xcode Personal Team
+
+You can install and test the app on your own iPhone without a paid Apple Developer Program membership by building locally on a Mac with Xcode.
+
+Requirements:
+- Mac with a current Xcode version
+- Apple Account signed into Xcode
+- iPhone connected to the Mac
+- Node.js 22.13 or newer
+- Developer Mode enabled on the iPhone
+
+Setup:
+
+```bash
+git clone https://github.com/m4d1xx1/kettlebell-complex-mobile.git
+cd kettlebell-complex-mobile
+npm install
+npm run ios:prebuild
+open ios/*.xcworkspace
+```
+
+In Xcode:
+1. Open **Xcode > Settings > Accounts** and sign in with your Apple Account.
+2. Select the app project and the main app target.
+3. Open **Signing & Capabilities**.
+4. Enable **Automatically manage signing**.
+5. Select your **Personal Team**.
+6. If Xcode reports that the bundle identifier is unavailable, replace it with a unique reverse-DNS identifier.
+7. Connect the iPhone, select it as the run destination, and press **Run**.
+
+On iOS 16 or later, enable **Settings > Privacy & Security > Developer Mode** if prompted.
+
+After the first native build, normal JavaScript/TypeScript changes usually do not require recompiling the native app. Start the development server with:
+
+```bash
+npm run ios:start
+```
+
+Then open Kettlebell Complex on the iPhone.
+
+Free Personal Team provisioning is temporary. Apple currently limits free provisioning profiles to 7 days, after which the app must be rebuilt and reinstalled.
