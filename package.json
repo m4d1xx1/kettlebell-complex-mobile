@@ -1,6 +1,6 @@
 {
   "name": "kettlebell-complex-mobile",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -31,7 +31,8 @@
     "expo-speech": "~57.0.3",
     "expo-dev-client": "~57.0.19",
     "expo-constants": "~57.0.19",
-    "expo-linking": "~57.0.11"
+    "expo-linking": "~57.0.11",
+    "expo-audio": "~57.0.5"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
