@@ -1,3 +1,4 @@
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
 import * as Speech from 'expo-speech';
 import { useEffect } from 'react';
 import { AppSettings } from '../types';
@@ -14,7 +15,20 @@ function sideText(sideLabel: string | undefined, language: AppSettings['voiceLan
 }
 
 export function useWorkoutCues(settings: AppSettings) {
-  useEffect(() => () => { Speech.stop(); }, []);
+  const tick = useAudioPlayer(require('../../assets/sounds/tick.wav'));
+  const go = useAudioPlayer(require('../../assets/sounds/go.wav'));
+  const complete = useAudioPlayer(require('../../assets/sounds/complete.wav'));
+
+  useEffect(() => {
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      interruptionMode: 'mixWithOthers'
+    }).catch(() => undefined);
+
+    return () => {
+      Speech.stop();
+    };
+  }, []);
 
   const speak = (text: string) => {
     if (!settings.voiceCues) return;
@@ -27,7 +41,17 @@ export function useWorkoutCues(settings: AppSettings) {
     });
   };
 
+  const replay = async (player: typeof tick) => {
+    try {
+      await player.seekTo(0);
+      player.play();
+    } catch {
+      // Cue sounds are optional; workout progression must never depend on audio playback.
+    }
+  };
+
   const cueCountdown = (value: number) => {
+    if (settings.soundCues) void replay(value > 0 ? tick : go);
     if (settings.voiceCues && settings.countdownVoice && value > 0) speak(String(value));
   };
 
@@ -50,6 +74,7 @@ export function useWorkoutCues(settings: AppSettings) {
   };
 
   const announceComplete = () => {
+    if (settings.soundCues) void replay(complete);
     if (settings.voiceCues) speak(settings.voiceLanguage === 'sv-SE' ? 'Passet är klart.' : 'Workout complete.');
   };
 
