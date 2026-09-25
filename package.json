@@ -1,6 +1,6 @@
 {
   "name": "kettlebell-complex-mobile",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -36,7 +36,10 @@
     "expo-constants": "~57.0.19",
     "expo-linking": "~57.0.11",
     "expo-audio": "~57.0.5",
-    "expo-asset": "~57.0.18"
+    "expo-asset": "~57.0.18",
+    "expo-sharing": "~57.0.22",
+    "expo-media-library": "~57.0.5",
+    "react-native-view-shot": "5.1.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
