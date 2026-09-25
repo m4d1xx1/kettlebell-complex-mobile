@@ -13,15 +13,7 @@ const CUSTOM_KEY = 'kb.customExercises.v2';
 const FAVORITES_KEY = 'kb.favoriteExercises.v3';
 const SETTINGS_KEY = 'kb.settings.v4';
 
-function detectedLanguage() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith('sv') ? 'sv' as const : 'en' as const;
-  } catch {
-    return 'en' as const;
-  }
-}
-
-const initialLanguage = detectedLanguage();
+const initialLanguage = 'en' as const;
 
 const defaultSettings: AppSettings = {
   uiLanguage: initialLanguage,
@@ -34,11 +26,11 @@ const defaultSettings: AppSettings = {
   countdownVoice: false,
   haptics: true,
   manualContinueAfterRest: false,
-  voiceLanguage: initialLanguage === 'sv' ? 'sv-SE' : 'en-US'
+  voiceLanguage: 'en-US'
 };
 
 const defaultPlan: WorkoutPlan = {
-  name: initialLanguage === 'sv' ? 'Mitt Complex' : 'My Complex',
+  name: 'My Complex',
   weightKg: defaultSettings.defaultWeightKg,
   rounds: defaultSettings.defaultRounds,
   restSeconds: defaultSettings.defaultRestSeconds,
@@ -124,12 +116,12 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
 
         if (settingsRaw) {
           const stored = JSON.parse(settingsRaw);
-          setSettings({ ...defaultSettings, ...stored });
+          setSettings({ ...defaultSettings, ...stored, uiLanguage: 'en', voiceLanguage: 'en-US' });
         } else {
           const legacy = await AsyncStorage.getItem('kb.settings.v3');
           if (legacy) {
             const old = JSON.parse(legacy);
-            setSettings({ ...defaultSettings, ...old, onboardingComplete: false });
+            setSettings({ ...defaultSettings, ...old, uiLanguage: 'en', voiceLanguage: 'en-US', onboardingComplete: false });
           }
         }
       } finally {
