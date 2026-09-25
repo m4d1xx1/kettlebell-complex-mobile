@@ -1,7 +1,7 @@
 export type ExerciseMode = 'reps' | 'time';
 export type ExerciseCategory = 'Ballistic' | 'Strength' | 'Legs' | 'Core';
 export type SideMode = 'both' | 'left' | 'right' | 'alternate';
-export type ExerciseVisual = 'swing' | 'clean' | 'press' | 'snatch' | 'squat' | 'lunge' | 'row' | 'deadlift' | 'halo' | 'carry';
+export type ExerciseVisual = 'swing' | 'clean' | 'press' | 'snatch' | 'squat' | 'lunge' | 'row' | 'deadlift' | 'halo' | 'carry' | 'pushup' | 'plank' | 'burpee' | 'bridge' | 'high-knees' | 'windmill' | 'floor-press';
 export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 export type VoiceLanguage = 'en-US' | 'sv-SE';
 export type UILanguage = 'en' | 'sv';
@@ -13,6 +13,7 @@ export type ExerciseDefinition = {
   defaultMode: ExerciseMode;
   defaultValue: number;
   unilateral?: boolean;
+  equipment?: 'kettlebell' | 'bodyweight';
   visual: ExerciseVisual;
   custom?: boolean;
   description?: string;
