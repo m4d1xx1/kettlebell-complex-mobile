@@ -47,6 +47,9 @@ export function buildRoundSteps(plan: WorkoutPlan, catalog: ExerciseDefinition[]
 export function calculatePlanStats(plan: WorkoutPlan, catalog: ExerciseDefinition[]) {
   const steps = buildRoundSteps(plan, catalog);
   const repsPerRound = steps.filter((x) => x.mode === 'reps').reduce((sum, x) => sum + x.value, 0);
+  const loadedRepsPerRound = steps
+    .filter((x) => x.mode === 'reps' && x.exercise.equipment !== 'bodyweight')
+    .reduce((sum, x) => sum + x.value, 0);
   const timedSecondsPerRound = steps.filter((x) => x.mode === 'time').reduce((sum, x) => sum + x.value, 0);
   const estimatedWorkSecondsPerRound = steps.reduce((sum, x) => sum + (x.mode === 'time' ? x.value : x.value * 2.6), 0);
   const totalReps = repsPerRound * plan.rounds;
@@ -55,7 +58,7 @@ export function calculatePlanStats(plan: WorkoutPlan, catalog: ExerciseDefinitio
     repsPerRound,
     totalReps,
     timedSecondsPerRound,
-    volumeKg: totalReps * plan.weightKg,
+    volumeKg: loadedRepsPerRound * plan.rounds * plan.weightKg,
     estimatedSeconds: Math.round(estimatedWorkSecondsPerRound * plan.rounds + Math.max(0, plan.rounds - 1) * plan.restSeconds)
   };
 }
