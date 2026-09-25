@@ -4,16 +4,13 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NumberStepper } from '../src/components/NumberStepper';
 import { PrimaryButton } from '../src/components/PrimaryButton';
-import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { translate } from '../src/i18n';
-import { UILanguage } from '../src/types';
 import { colors, radius } from '../src/theme';
 
 export default function OnboardingScreen() {
   const { settings, updateSettings, setPlan } = useWorkout();
   const [step, setStep] = useState(0);
-  const [language, setLanguage] = useState<UILanguage>(settings.uiLanguage);
   const [weight, setWeight] = useState(settings.defaultWeightKg);
   const [rounds, setRounds] = useState(settings.defaultRounds);
   const [rest, setRest] = useState(settings.defaultRestSeconds);
@@ -21,17 +18,12 @@ export default function OnboardingScreen() {
   const [voiceCues, setVoiceCues] = useState(settings.voiceCues);
   const [haptics, setHaptics] = useState(settings.haptics);
 
-  const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
-  const languages = [
-    { value: 'en' as const, label: 'English' },
-    { value: 'sv' as const, label: 'Svenska' }
-  ];
+  const t = (key: Parameters<typeof translate>[1]) => translate('en', key);
 
   async function finish() {
-    const voiceLanguage = language === 'sv' ? 'sv-SE' as const : 'en-US' as const;
     await updateSettings({
-      uiLanguage: language,
-      voiceLanguage,
+      uiLanguage: 'en',
+      voiceLanguage: 'en-US',
       onboardingComplete: true,
       defaultWeightKg: weight,
       defaultRounds: rounds,
@@ -63,10 +55,6 @@ export default function OnboardingScreen() {
               <View style={styles.logo}><Text style={styles.logoText}>KB</Text></View>
               <Text style={styles.title}>{t('welcomeTitle')}</Text>
               <Text style={styles.body}>{t('welcomeBody')}</Text>
-              <View style={styles.block}>
-                <Text style={styles.label}>{t('chooseLanguage')}</Text>
-                <SegmentedControl value={language} options={languages} onChange={setLanguage}/>
-              </View>
             </View>
           ) : null}
 
