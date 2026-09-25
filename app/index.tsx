@@ -51,7 +51,7 @@ export default function BuilderScreen() {
         <View style={[styles.item, isActive && styles.itemActive]}>
           <Pressable onLongPress={drag} delayLongPress={120} accessibilityLabel={exercise.name} style={styles.dragArea}>
             <Text style={styles.drag}>≡</Text>
-            <ExerciseGlyph visual={exercise.visual} size={58}/>
+            <ExerciseGlyph visual={exercise.visual} size={72}/>
           </Pressable>
 
           <View style={styles.itemCenter}>
