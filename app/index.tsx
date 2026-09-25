@@ -1,10 +1,11 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { NumberStepper } from '../src/components/NumberStepper';
+import { PRESETS } from '../src/data/presets';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
@@ -21,6 +22,10 @@ export default function BuilderScreen() {
   } = useWorkout();
   const { t, language } = useI18n();
   const stats = useMemo(() => calculatePlanStats(plan, exercises), [plan, exercises]);
+  const hasKettlebell = useMemo(
+    () => plan.items.some((item) => exercises.find((exercise) => exercise.id === item.exerciseId)?.equipment !== 'bodyweight'),
+    [plan.items, exercises]
+  );
 
   useEffect(() => {
     if (hydrated && !settings.onboardingComplete) router.replace('/onboarding');
@@ -111,12 +116,16 @@ export default function BuilderScreen() {
             </View>
           </View>
 
-          <View style={styles.presetRow}>
-            <Pressable style={styles.preset} onPress={() => loadPreset('cps')}><Text style={styles.presetText}>C·P·S</Text></Pressable>
-            <Pressable style={styles.preset} onPress={() => loadPreset('simple5')}><Text style={styles.presetText}>Simple 5</Text></Pressable>
-            <Pressable style={styles.preset} onPress={() => loadPreset('swing')}><Text style={styles.presetText}>Swing 20</Text></Pressable>
-            <Pressable style={styles.preset} onPress={() => router.push('/saved')}><Text style={styles.presetText}>{t('saved')}</Text></Pressable>
-          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroller} contentContainerStyle={styles.presetRow}>
+            {PRESETS.map((preset) => (
+              <Pressable key={preset.id} style={styles.preset} onPress={() => loadPreset(preset.id)}>
+                <Text style={styles.presetText}>{preset.label}</Text>
+              </Pressable>
+            ))}
+            <Pressable style={styles.preset} onPress={() => router.push('/saved')}>
+              <Text style={styles.presetText}>{t('saved')}</Text>
+            </Pressable>
+          </ScrollView>
 
           <View style={styles.sectionHeader}>
             <View>
@@ -144,7 +153,9 @@ export default function BuilderScreen() {
           </View>
 
           <View style={styles.stepperGrid}>
-            <NumberStepper label={t('weight')} value={plan.weightKg} min={4} max={80} step={2} suffix="kg" haptics={settings.haptics} onChange={(weightKg) => setPlan((p) => ({ ...p, weightKg }))}/>
+            {hasKettlebell ? (
+              <NumberStepper label={t('weight')} value={plan.weightKg} min={4} max={80} step={2} suffix="kg" haptics={settings.haptics} onChange={(weightKg) => setPlan((p) => ({ ...p, weightKg }))}/>
+            ) : null}
             <NumberStepper label={t('rounds')} value={plan.rounds} min={1} max={30} haptics={settings.haptics} onChange={(rounds) => setPlan((p) => ({ ...p, rounds }))}/>
             <NumberStepper label={t('roundRest')} value={plan.restSeconds} min={0} max={600} step={15} suffix={t('sec')} haptics={settings.haptics} onChange={(restSeconds) => setPlan((p) => ({ ...p, restSeconds }))}/>
           </View>
@@ -152,7 +163,11 @@ export default function BuilderScreen() {
           <View style={styles.summary}>
             <View><Text style={styles.summaryLabel}>{t('estimated')}</Text><Text style={styles.summaryBig}>{formatDuration(stats.estimatedSeconds)}</Text></View>
             <View style={styles.summaryRight}><Text style={styles.summaryMetric}>{stats.totalReps}</Text><Text style={styles.summarySmall}>{t('reps').toLowerCase()}</Text></View>
-            <View style={styles.summaryRight}><Text style={styles.summaryMetric}>{Math.round(stats.volumeKg / 100) / 10}t</Text><Text style={styles.summarySmall}>{t('loadVolume')}</Text></View>
+            {hasKettlebell ? (
+              <View style={styles.summaryRight}><Text style={styles.summaryMetric}>{Math.round(stats.volumeKg / 100) / 10}t</Text><Text style={styles.summarySmall}>{t('loadVolume')}</Text></View>
+            ) : (
+              <View style={styles.summaryRight}><Text style={styles.summaryMetric}>BW</Text><Text style={styles.summarySmall}>bodyweight</Text></View>
+            )}
           </View>
 
           <PrimaryButton label={t('startWorkout')} disabled={!plan.items.length} onPress={() => router.push('/workout')}/>
@@ -184,7 +199,8 @@ const styles = StyleSheet.create({
   iconTopButton: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   iconTopText: { color: colors.text, fontSize: 18, fontWeight: '800' },
   topButtonText: { color: colors.text, fontWeight: '800' },
-  presetRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  presetScroller: { flexGrow: 0 },
+  presetRow: { flexDirection: 'row', gap: 8, paddingRight: 8 },
   preset: { paddingHorizontal: 13, minHeight: 40, borderRadius: 20, backgroundColor: colors.panel, justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   presetText: { color: colors.text, fontSize: 13, fontWeight: '800' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
