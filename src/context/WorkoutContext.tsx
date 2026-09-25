@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 import { BASE_EXERCISES } from '../data/exercises';
+import { PRESETS, PresetId } from '../data/presets';
 import {
   AppSettings, ComplexItem, ExerciseCategory, ExerciseDefinition, ExerciseMode,
   ExerciseVisual, SavedComplex, SideMode, WorkoutHistoryEntry, WorkoutPlan
@@ -56,7 +57,7 @@ type ContextValue = {
   loadSaved: (id: string) => void;
   deleteSaved: (id: string) => Promise<void>;
   toggleSavedFavorite: (id: string) => Promise<void>;
-  loadPreset: (preset: 'cps' | 'simple5' | 'swing') => void;
+  loadPreset: (preset: PresetId) => void;
   applyProfileDefaults: () => void;
   addCustomExercise: (input: { name: string; category: ExerciseCategory; mode: ExerciseMode; value: number; unilateral: boolean }) => Promise<void>;
   toggleExerciseFavorite: (id: string) => Promise<void>;
@@ -189,33 +190,20 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     restSeconds: settings.defaultRestSeconds
   });
 
-  const loadPreset = (preset: 'cps' | 'simple5' | 'swing') => {
+  const loadPreset = (preset: PresetId) => {
+    const definition = PRESETS.find((x) => x.id === preset);
+    if (!definition) return;
+
     const defaults = profile();
-    if (preset === 'cps') {
-      setPlan({
-        name: 'Clean · Press · Squat',
-        ...defaults,
-        items: [makeItem(exercises, 'clean', 5), makeItem(exercises, 'strict-press', 5), makeItem(exercises, 'front-squat', 5)]
-      });
-    } else if (preset === 'simple5') {
-      setPlan({
-        name: 'Simple 5',
-        ...defaults,
-        items: [
-          makeItem(exercises, 'swing', 10),
-          makeItem(exercises, 'goblet-squat', 5),
-          makeItem(exercises, 'strict-press', 5),
-          makeItem(exercises, 'row', 5),
-          makeItem(exercises, 'reverse-lunge', 5)
-        ]
-      });
-    } else {
-      setPlan({
-        name: 'Swing Intervals',
-        ...defaults,
-        items: [makeItem(exercises, 'swing', 20)]
-      });
-    }
+    setPlan({
+      name: definition.name,
+      weightKg: defaults.weightKg,
+      rounds: definition.rounds ?? defaults.rounds,
+      restSeconds: definition.restSeconds ?? defaults.restSeconds,
+      items: definition.items.map((item) =>
+        makeItem(exercises, item.exerciseId, item.value, item.mode, item.side)
+      )
+    });
   };
 
   const applyProfileDefaults = () =>
@@ -237,6 +225,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
       defaultValue: input.value,
       unilateral: input.unilateral,
       visual: (input.category === 'Legs' ? 'squat' : input.category === 'Ballistic' ? 'swing' : input.category === 'Core' ? 'carry' : 'press') as ExerciseVisual,
+      equipment: 'kettlebell',
       custom: true,
       difficulty: 'Intermediate',
       description: 'Custom exercise.',
