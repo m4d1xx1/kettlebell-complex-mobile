@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import { BrandMark } from '../src/components/BrandMark';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { NumberStepper } from '../src/components/NumberStepper';
 import { PRESETS } from '../src/data/presets';
@@ -107,7 +108,7 @@ export default function BuilderScreen() {
         <View style={styles.headerBlock}>
           <View style={styles.hero}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.eyebrow}>KETTLEBELL COMPLEX</Text>
+              <BrandMark compact/>
               <TextInput value={plan.name} onChangeText={(name) => setPlan((p) => ({ ...p, name }))} maxLength={40} style={styles.nameInput}/>
             </View>
             <View style={styles.topActions}>
