@@ -16,7 +16,7 @@ import { formatDuration } from '../src/utils/format';
 
 export default function BuilderScreen() {
   const {
-    hydrated, plan, setPlan, exercises, reorderItems, removeItem, moveItem, updateItem,
+    hydrated, plan, setPlan, exercises, reorderItems, removeItem, updateItem,
     loadPreset, saveCurrent, settings, applyProfileDefaults
   } = useWorkout();
   const { t, language } = useI18n();
@@ -56,12 +56,19 @@ export default function BuilderScreen() {
 
           <View style={styles.itemCenter}>
             <View style={styles.itemTitleRow}>
-              <Text style={styles.itemName}>{index + 1}. {exercise.name}</Text>
-              <Text style={styles.itemCategory}>{categoryLabel(language, exercise.category)}</Text>
+              <View style={styles.itemTitleText}>
+                <Text style={styles.itemName}>{index + 1}. {exercise.name}</Text>
+                <Text style={styles.itemCategory}>{categoryLabel(language, exercise.category)}</Text>
+              </View>
+              <Pressable accessibilityLabel={t('delete')} onPress={() => removeItem(item.key)} style={styles.deleteButton}>
+                <Text style={styles.deleteText}>×</Text>
+              </Pressable>
             </View>
 
             <View style={styles.settingRow}>
-              <SegmentedControl value={item.mode} options={modeOptions} onChange={(mode) => updateItem(item.key, { mode })}/>
+              <View style={styles.modeControl}>
+                <SegmentedControl value={item.mode} options={modeOptions} onChange={(mode) => updateItem(item.key, { mode })}/>
+              </View>
               <View style={styles.valuePill}>
                 <Pressable onPress={() => updateItem(item.key, { value: Math.max(1, item.value - (item.mode === 'time' ? 5 : 1)) })} style={styles.mini}><Text style={styles.miniText}>−</Text></Pressable>
                 <Text style={styles.valueText}>{item.value}</Text>
@@ -77,11 +84,6 @@ export default function BuilderScreen() {
             ) : null}
           </View>
 
-          <View style={styles.rowActions}>
-            <Pressable disabled={index === 0} onPress={() => moveItem(item.key, -1)} style={[styles.action, index === 0 && styles.actionDisabled]}><Text style={styles.actionText}>↑</Text></Pressable>
-            <Pressable disabled={index === plan.items.length - 1} onPress={() => moveItem(item.key, 1)} style={[styles.action, index === plan.items.length - 1 && styles.actionDisabled]}><Text style={styles.actionText}>↓</Text></Pressable>
-            <Pressable onPress={() => removeItem(item.key)} style={styles.action}><Text style={[styles.actionText, { color: colors.danger }]}>×</Text></Pressable>
-          </View>
         </View>
       </ScaleDecorator>
     );
@@ -190,24 +192,24 @@ const styles = StyleSheet.create({
   muted: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   empty: { borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.lg, padding: 22, gap: 6 },
   emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  item: { flexDirection: 'row', gap: 10, backgroundColor: colors.card, borderRadius: radius.lg, padding: 11, marginVertical: 5, borderWidth: 1, borderColor: 'transparent' },
+  item: { flexDirection: 'row', gap: 8, backgroundColor: colors.card, borderRadius: radius.lg, padding: 10, marginVertical: 5, borderWidth: 1, borderColor: 'transparent' },
   itemActive: { borderColor: colors.accent, backgroundColor: colors.elevated },
-  dragArea: { width: 66, alignItems: 'center', gap: 3 },
+  dragArea: { width: 60, alignItems: 'center', gap: 3 },
   drag: { color: colors.muted, fontSize: 20, fontWeight: '900', lineHeight: 18 },
   itemCenter: { flex: 1, minWidth: 0 },
-  itemTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 },
+  itemTitleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
+  itemTitleText: { flex: 1, minWidth: 0 },
   itemName: { color: colors.text, fontSize: 15, fontWeight: '900', flexShrink: 1 },
-  itemCategory: { color: colors.muted, fontSize: 10, fontWeight: '800' },
-  settingRow: { marginTop: 9, flexDirection: 'row', gap: 8, alignItems: 'center' },
-  valuePill: { flexDirection: 'row', alignItems: 'center', minHeight: 41, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel, paddingHorizontal: 3 },
+  itemCategory: { color: colors.muted, fontSize: 10, fontWeight: '800', marginTop: 2 },
+  deleteButton: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  deleteText: { color: colors.danger, fontSize: 20, fontWeight: '900', lineHeight: 22 },
+  settingRow: { marginTop: 9, flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  modeControl: { flexGrow: 1, flexShrink: 1, minWidth: 132 },
+  valuePill: { flexDirection: 'row', alignItems: 'center', minHeight: 41, minWidth: 122, alignSelf: 'flex-start', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel, paddingHorizontal: 3 },
   mini: { width: 30, height: 34, alignItems: 'center', justifyContent: 'center' },
   miniText: { color: colors.text, fontSize: 19, fontWeight: '800' },
   valueText: { color: colors.text, fontSize: 16, fontWeight: '900', minWidth: 24, textAlign: 'center' },
   valueUnit: { color: colors.muted, fontSize: 10, fontWeight: '700', marginHorizontal: 3 },
-  rowActions: { gap: 4, justifyContent: 'center' },
-  action: { width: 32, height: 30, borderRadius: 9, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  actionDisabled: { opacity: 0.25 },
-  actionText: { color: colors.text, fontWeight: '900', fontSize: 15 },
   footer: { marginTop: 16, gap: 14 },
   setupHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   defaultsButton: { minHeight: 38, borderRadius: 19, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', paddingHorizontal: 11 },
