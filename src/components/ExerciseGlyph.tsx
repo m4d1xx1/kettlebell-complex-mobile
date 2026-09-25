@@ -20,35 +20,79 @@ function Figure({ visual }: { visual: ExerciseVisual }) {
 }
 
 function motionFor(visual: ExerciseVisual, value: Animated.Value): any {
-  if (visual === 'swing' || visual === 'clean') {
+  if (visual === 'swing') {
     return {
       transform: [
-        { rotate: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-3deg', '5deg', '-3deg'] }) },
-        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [2, -2, 2] }) }
+        { rotate: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-10deg', '11deg', '-10deg'] }) },
+        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [9, -10, 9] }) },
+        { scale: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.96, 1.04, 0.96] }) }
+      ]
+    };
+  }
+  if (visual === 'clean') {
+    return {
+      transform: [
+        { translateY: value.interpolate({ inputRange: [0, 0.48, 1], outputRange: [9, -9, 9] }) },
+        { rotate: value.interpolate({ inputRange: [0, 0.48, 1], outputRange: ['-7deg', '5deg', '-7deg'] }) }
       ]
     };
   }
   if (visual === 'press' || visual === 'snatch') {
-    return { transform: [{ translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [4, -5, 4] }) }] };
-  }
-  if (visual === 'squat' || visual === 'deadlift' || visual === 'lunge') {
     return {
       transform: [
-        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-2, 5, -2] }) },
-        { scale: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.97, 1] }) }
+        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [8, -13, 8] }) },
+        { scale: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.98, 1.035, 0.98] }) }
+      ]
+    };
+  }
+  if (visual === 'squat') {
+    return {
+      transform: [
+        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-3, 14, -3] }) },
+        { scaleY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.91, 1] }) }
+      ]
+    };
+  }
+  if (visual === 'deadlift') {
+    return {
+      transform: [
+        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-2, 13, -2] }) },
+        { rotate: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['0deg', '6deg', '0deg'] }) }
+      ]
+    };
+  }
+  if (visual === 'lunge') {
+    return {
+      transform: [
+        { translateX: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-2, 8, -2] }) },
+        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-1, 10, -1] }) }
+      ]
+    };
+  }
+  if (visual === 'row') {
+    return {
+      transform: [
+        { translateX: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-4, 7, -4] }) },
+        { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [2, -4, 2] }) }
       ]
     };
   }
   if (visual === 'halo') {
-    return { transform: [{ rotate: value.interpolate({ inputRange: [0, 1], outputRange: ['-4deg', '4deg'] }) }] };
+    return {
+      transform: [
+        { rotate: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-11deg', '11deg', '-11deg'] }) },
+        { scale: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.98, 1.02, 0.98] }) }
+      ]
+    };
   }
-  if (visual === 'row') {
-    return { transform: [{ translateX: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-2, 3, -2] }) }] };
-  }
-  return { transform: [{ translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -2, 0] }) }] };
+  return {
+    transform: [
+      { translateY: value.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, -3, 1] }) }
+    ]
+  };
 }
 
-export function ExerciseGlyph({ visual, size = 62, animated = false }: { visual: ExerciseVisual; size?: number; animated?: boolean }) {
+export function ExerciseGlyph({ visual, size = 62, animated = false, hero = false }: { visual: ExerciseVisual; size?: number; animated?: boolean; hero?: boolean }) {
   const motion = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -59,8 +103,8 @@ export function ExerciseGlyph({ visual, size = 62, animated = false }: { visual:
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(motion, { toValue: 1, duration: 780, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(motion, { toValue: 0, duration: 780, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
+        Animated.timing(motion, { toValue: 1, duration: 980, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(motion, { toValue: 0, duration: 980, easing: Easing.inOut(Easing.quad), useNativeDriver: true })
       ])
     );
     loop.start();
@@ -68,9 +112,9 @@ export function ExerciseGlyph({ visual, size = 62, animated = false }: { visual:
   }, [animated, motion]);
 
   return (
-    <View style={[styles.wrap, { width: size, height: size, borderRadius: size / 2 }]}>
+    <View style={[styles.wrap, hero && styles.heroWrap, { width: size, height: size, borderRadius: hero ? 28 : size / 2 }]}>
       <Animated.View style={animated ? motionFor(visual, motion) : undefined}>
-        <Svg width={size * 0.82} height={size * 0.82} viewBox="0 0 64 64">
+        <Svg width={size * (hero ? 0.96 : 0.82)} height={size * (hero ? 0.96 : 0.82)} viewBox="0 0 64 64">
           <Figure visual={visual}/>
         </Svg>
       </Animated.View>
@@ -86,5 +130,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden'
+  },
+  heroWrap: {
+    backgroundColor: 'transparent',
+    borderWidth: 0
   }
 });
