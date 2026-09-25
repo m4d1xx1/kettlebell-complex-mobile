@@ -66,5 +66,6 @@ export type AppSettings = {
   voiceCues: boolean;
   countdownVoice: boolean;
   haptics: boolean;
+  manualContinueAfterRest: boolean;
   voiceLanguage: VoiceLanguage;
 };
