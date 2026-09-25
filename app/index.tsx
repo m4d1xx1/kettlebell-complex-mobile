@@ -53,17 +53,17 @@ export default function BuilderScreen() {
 
     return (
       <ScaleDecorator activeScale={1.02}>
-        <View style={[styles.item, isActive && styles.itemActive]}>
+        <View style={[styles.item, exercise.equipment === 'bodyweight' && styles.bodyweightItem, isActive && styles.itemActive]}>
           <Pressable onLongPress={drag} delayLongPress={120} accessibilityLabel={exercise.name} style={styles.dragArea}>
             <Text style={styles.drag}>≡</Text>
-            <ExerciseGlyph visual={exercise.visual} size={72}/>
+            <ExerciseGlyph visual={exercise.visual} size={72} equipment={exercise.equipment ?? 'kettlebell'}/>
           </Pressable>
 
           <View style={styles.itemCenter}>
             <View style={styles.itemTitleRow}>
               <View style={styles.itemTitleText}>
                 <Text style={styles.itemName}>{index + 1}. {exercise.name}</Text>
-                <Text style={styles.itemCategory}>{categoryLabel(language, exercise.category)}</Text>
+                <Text style={[styles.itemCategory, exercise.equipment === 'bodyweight' && styles.bodyweightText]}>{exercise.equipment === 'bodyweight' ? 'Bodyweight · ' : ''}{categoryLabel(language, exercise.category)}</Text>
               </View>
               <Pressable accessibilityLabel={t('delete')} onPress={() => removeItem(item.key)} style={styles.deleteButton}>
                 <Text style={styles.deleteText}>×</Text>
@@ -118,8 +118,12 @@ export default function BuilderScreen() {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroller} contentContainerStyle={styles.presetRow}>
             {PRESETS.map((preset) => (
-              <Pressable key={preset.id} style={styles.preset} onPress={() => loadPreset(preset.id)}>
-                <Text style={styles.presetText}>{preset.label}</Text>
+              <Pressable
+                key={preset.id}
+                style={[styles.preset, preset.id.startsWith('bodyweight-') && styles.bodyweightPreset]}
+                onPress={() => loadPreset(preset.id)}
+              >
+                <Text style={[styles.presetText, preset.id.startsWith('bodyweight-') && styles.bodyweightPresetText]}>{preset.label}</Text>
               </Pressable>
             ))}
             <Pressable style={styles.preset} onPress={() => router.push('/saved')}>
@@ -166,7 +170,7 @@ export default function BuilderScreen() {
             {hasKettlebell ? (
               <View style={styles.summaryRight}><Text style={styles.summaryMetric}>{Math.round(stats.volumeKg / 100) / 10}t</Text><Text style={styles.summarySmall}>{t('loadVolume')}</Text></View>
             ) : (
-              <View style={styles.summaryRight}><Text style={styles.summaryMetric}>BW</Text><Text style={styles.summarySmall}>bodyweight</Text></View>
+              <View style={styles.summaryRight}><Text style={[styles.summaryMetric, styles.bodyweightText]}>BW</Text><Text style={styles.summarySmall}>bodyweight</Text></View>
             )}
           </View>
 
@@ -203,6 +207,9 @@ const styles = StyleSheet.create({
   presetRow: { flexDirection: 'row', gap: 8, paddingRight: 8 },
   preset: { paddingHorizontal: 13, minHeight: 40, borderRadius: 20, backgroundColor: colors.panel, justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   presetText: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  bodyweightPreset: { borderColor: colors.bodyweight, backgroundColor: colors.bodyweightSoft },
+  bodyweightPresetText: { color: colors.bodyweight },
+  bodyweightText: { color: colors.bodyweight },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
   muted: { color: colors.muted, fontSize: 13, lineHeight: 19 },
@@ -210,6 +217,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
   item: { flexDirection: 'row', gap: 8, backgroundColor: colors.card, borderRadius: radius.lg, padding: 10, marginVertical: 5, borderWidth: 1, borderColor: 'transparent' },
   itemActive: { borderColor: colors.accent, backgroundColor: colors.elevated },
+  bodyweightItem: { borderColor: colors.bodyweight, backgroundColor: colors.bodyweightSoft },
   dragArea: { width: 60, alignItems: 'center', gap: 3 },
   drag: { color: colors.muted, fontSize: 20, fontWeight: '900', lineHeight: 18 },
   itemCenter: { flex: 1, minWidth: 0 },
