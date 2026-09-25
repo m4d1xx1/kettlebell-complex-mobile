@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BrandMark } from '../src/components/BrandMark';
 import { NumberStepper } from '../src/components/NumberStepper';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { useWorkout } from '../src/context/WorkoutContext';
@@ -52,7 +53,7 @@ export default function OnboardingScreen() {
         >
           {step === 0 ? (
             <View style={styles.content}>
-              <View style={styles.logo}><Text style={styles.logoText}>KB</Text></View>
+              <BrandMark/>
               <Text style={styles.title}>{t('welcomeTitle')}</Text>
               <Text style={styles.body}>{t('welcomeBody')}</Text>
             </View>
