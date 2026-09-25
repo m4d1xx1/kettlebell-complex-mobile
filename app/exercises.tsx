@@ -59,8 +59,19 @@ export default function ExercisesScreen() {
         contentContainerStyle={styles.filters}
         style={styles.filterList}
         renderItem={({ item }) => (
-          <Pressable onPress={() => setFilter(item)} style={[styles.filter, filter === item && styles.filterActive]}>
-            <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{filterLabel(item)}</Text>
+          <Pressable
+            onPress={() => setFilter(item)}
+            style={[
+              styles.filter,
+              filter === item && styles.filterActive,
+              filter === 'Bodyweight' && item === 'Bodyweight' && styles.bodyweightFilterActive
+            ]}
+          >
+            <Text style={[
+              styles.filterText,
+              filter === item && styles.filterTextActive,
+              filter === 'Bodyweight' && item === 'Bodyweight' && styles.bodyweightFilterText
+            ]}>{filterLabel(item)}</Text>
           </Pressable>
         )}
       />
@@ -79,9 +90,9 @@ export default function ExercisesScreen() {
         renderItem={({ item }) => {
           const favorite = favoriteExerciseIds.includes(item.id);
           return (
-            <View style={styles.row}>
+            <View style={[styles.row, item.equipment === 'bodyweight' && styles.bodyweightRow]}>
               <Pressable onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
-                <ExerciseGlyph visual={item.visual} size={76}/>
+                <ExerciseGlyph visual={item.visual} size={76} equipment={item.equipment ?? 'kettlebell'}/>
               </Pressable>
               <Pressable style={styles.center} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
                 <View style={styles.nameRow}>
@@ -129,8 +140,11 @@ const styles = StyleSheet.create({
   filterActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   filterText: { color: colors.text, fontWeight: '800' },
   filterTextActive: { color: colors.accentText },
+  bodyweightFilterActive: { backgroundColor: colors.bodyweight, borderColor: colors.bodyweight },
+  bodyweightFilterText: { color: colors.bodyweightText },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
-  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderRadius: radius.lg, backgroundColor: colors.card },
+  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: 'transparent' },
+  bodyweightRow: { borderColor: colors.bodyweight, backgroundColor: colors.bodyweightSoft },
   center: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', gap: 7, alignItems: 'center', flexWrap: 'wrap' },
   name: { color: colors.text, fontWeight: '900', fontSize: 16 },
