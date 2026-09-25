@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { PrimaryButton } from '../src/components/PrimaryButton';
@@ -11,7 +11,7 @@ import { useWorkoutCues } from '../src/hooks/useWorkoutCues';
 import { useI18n } from '../src/i18n';
 import { WorkoutHistoryEntry } from '../src/types';
 import { colors, radius } from '../src/theme';
-import { buildRoundSteps, calculatePlanStats, WorkoutStep } from '../src/workout/steps';
+import { buildRoundSteps, calculateBodyweightSummary, calculatePlanStats, WorkoutStep } from '../src/workout/steps';
 import { formatDuration } from '../src/utils/format';
 
 type Phase = 'ready' | 'countdown' | 'exercise' | 'rest' | 'done';
@@ -29,10 +29,14 @@ export default function WorkoutScreen() {
   const cues = useWorkoutCues(settings);
   const roundSteps = useMemo(() => buildRoundSteps(plan, exercises), [plan, exercises]);
   const stats = useMemo(() => calculatePlanStats(plan, exercises), [plan, exercises]);
+  const bodyweightSummary = useMemo(() => calculateBodyweightSummary(plan, exercises), [plan, exercises]);
   const hasKettlebell = useMemo(
     () => plan.items.some((item) => exercises.find((exercise) => exercise.id === item.exerciseId)?.equipment !== 'bodyweight'),
     [plan.items, exercises]
   );
+
+  const hasBodyweight = bodyweightSummary.items.length > 0;
+  const bodyweightOnly = hasBodyweight && !hasKettlebell;
 
   const [round, setRound] = useState(1);
   const [stepIndex, setStepIndex] = useState(0);
@@ -49,6 +53,7 @@ export default function WorkoutScreen() {
   const previousRef = useRef<WorkoutHistoryEntry | undefined>(undefined);
 
   const step = roundSteps[stepIndex];
+  const isBodyweightStep = step?.exercise.equipment === 'bodyweight';
   const totalSteps = Math.max(1, roundSteps.length * plan.rounds);
   const completed = Math.min(totalSteps, (round - 1) * roundSteps.length + stepIndex);
   const progress = phase === 'done' ? 1 : completed / totalSteps;
@@ -257,7 +262,7 @@ export default function WorkoutScreen() {
     return (
       <View style={[styles.readyPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
         <View style={styles.readyTop}>
-          <Text style={styles.kicker}>{t('ready')}</Text>
+          <Text style={[styles.kicker, bodyweightOnly && styles.bodyweightAccent]}>{t('ready')}</Text>
           <Text style={styles.readyTitle}>{plan.name}</Text>
           <Text style={styles.readyMeta}>
             {plan.rounds} {t('rounds').toLowerCase()} · {hasKettlebell ? `${plan.weightKg} kg · ` : ''}{roundSteps.length} {t('step').toLowerCase()} / {t('round').toLowerCase()}
@@ -265,10 +270,10 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.preview}>
-          <ExerciseGlyph visual={step.exercise.visual} size={readyHeroSize} animated hero/>
+          <ExerciseGlyph visual={step.exercise.visual} size={readyHeroSize} animated hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
           <Text style={styles.previewLabel}>{t('firstUp')}</Text>
           <Text style={styles.previewName}>{step.exercise.name}</Text>
-          {sideLabel(step) ? <Text style={styles.sideBadge}>{sideLabel(step)}</Text> : null}
+          {sideLabel(step) ? <Text style={[styles.sideBadge, isBodyweightStep && styles.bodyweightBadge]}>{sideLabel(step)}</Text> : null}
           <Text style={styles.previewTarget}>{step.value} {step.mode === 'reps' ? t('reps').toLowerCase() : t('sec')}</Text>
           <View style={styles.cueStatus}>
             <Text style={styles.cueStatusText}>
@@ -288,7 +293,7 @@ export default function WorkoutScreen() {
   if (phase === 'countdown') {
     return (
       <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
-        <Text style={styles.kicker}>{t('getReady')}</Text>
+        <Text style={[styles.kicker, bodyweightOnly && styles.bodyweightAccent]}>{t('getReady')}</Text>
         <Text style={styles.countdown}>{remaining || 'GO'}</Text>
         <Text style={styles.doneMeta}>{step.exercise.name}{sideLabel(step) ? ` · ${sideLabel(step)}` : ''}</Text>
       </View>
@@ -305,17 +310,49 @@ export default function WorkoutScreen() {
         : `${formatDuration(Math.abs(delta))} ${delta < 0 ? t('faster') : t('slower')}`;
 
     return (
-      <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
-        <Text style={styles.kicker}>{t('workoutComplete')}</Text>
+      <ScrollView
+        style={styles.doneScroll}
+        contentContainerStyle={[
+          styles.doneContent,
+          { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 24) }
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.kicker, bodyweightOnly && styles.bodyweightAccent]}>{t('workoutComplete')}</Text>
         <Text style={styles.doneTitle}>{plan.name}</Text>
-        <Text style={styles.savedNotice}>✓ {t('sessionSaved')}</Text>
+        <Text style={[styles.savedNotice, bodyweightOnly && styles.bodyweightAccent]}>✓ {t('sessionSaved')}</Text>
 
         <View style={styles.doneStats}>
           <DoneStat label={t('totalTime')} value={formatDuration(completedDuration)}/>
           <DoneStat label={t('avgRound')} value={formatDuration(Math.round(completedDuration / Math.max(1, plan.rounds)))}/>
           <DoneStat label={t('reps').toUpperCase()} value={String(stats.totalReps)}/>
           {hasKettlebell ? <DoneStat label={t('load')} value={`${Math.round(stats.volumeKg / 100) / 10}t`}/> : null}
+          {bodyweightSummary.totalReps > 0 ? <DoneStat label="BW REPS" value={String(bodyweightSummary.totalReps)} tone="bodyweight"/> : null}
+          {bodyweightSummary.totalSeconds > 0 ? <DoneStat label="BW TIME" value={formatDuration(bodyweightSummary.totalSeconds)} tone="bodyweight"/> : null}
         </View>
+
+        {hasBodyweight ? (
+          <View style={styles.bodyweightSummary}>
+            <View style={styles.bodyweightSummaryHeader}>
+              <Text style={styles.bodyweightSummaryTitle}>BODYWEIGHT WORK</Text>
+              <Text style={styles.bodyweightSummaryMeta}>
+                {bodyweightSummary.totalReps > 0 ? `${bodyweightSummary.totalReps} reps` : ''}
+                {bodyweightSummary.totalReps > 0 && bodyweightSummary.totalSeconds > 0 ? ' · ' : ''}
+                {bodyweightSummary.totalSeconds > 0 ? formatDuration(bodyweightSummary.totalSeconds) : ''}
+              </Text>
+            </View>
+            {bodyweightSummary.items.map((item) => (
+              <View key={item.exerciseId} style={styles.bodyweightSummaryRow}>
+                <Text style={styles.bodyweightSummaryName}>{item.name}</Text>
+                <Text style={styles.bodyweightSummaryValue}>
+                  {item.reps > 0 ? `${item.reps} reps` : ''}
+                  {item.reps > 0 && item.seconds > 0 ? ' · ' : ''}
+                  {item.seconds > 0 ? formatDuration(item.seconds) : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.compare}>
           <Text style={styles.compareLabel}>{t('vsLast')}</Text>
@@ -325,14 +362,14 @@ export default function WorkoutScreen() {
         <PrimaryButton label={t('runAgain')} onPress={resetWorkout}/>
         <Pressable onPress={() => router.replace('/history')} style={styles.outlineWide}><Text style={styles.outlineText}>{t('viewHistory')}</Text></Pressable>
         <Pressable onPress={() => router.replace('/')} style={styles.textButton}><Text style={styles.textButtonText}>{t('backBuilder')}</Text></Pressable>
-      </View>
+      </ScrollView>
     );
   }
 
   if (phase === 'rest') {
     return (
       <View style={[styles.workoutPage, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Progress value={progress}/>
+        <Progress value={progress} color={bodyweightOnly ? colors.bodyweight : colors.accent}/>
         <View style={styles.statusRow}>
           <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
           <Text style={styles.elapsed}>{formatDuration(elapsed)}</Text>
@@ -363,7 +400,7 @@ export default function WorkoutScreen() {
 
   return (
     <View style={[styles.workoutPage, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 12) }]}>
-      <Progress value={progress}/>
+      <Progress value={progress} color={isBodyweightStep ? colors.bodyweight : colors.accent}/>
       <View style={styles.statusRow}>
         <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
         <Text style={styles.elapsed}>{formatDuration(elapsed)}</Text>
@@ -371,8 +408,8 @@ export default function WorkoutScreen() {
       </View>
 
       <View style={styles.main}>
-        <ExerciseGlyph visual={step.exercise.visual} size={heroSize} animated hero/>
-        {sideLabel(step) ? <Text style={styles.sideBadge}>{sideLabel(step)}</Text> : null}
+        <ExerciseGlyph visual={step.exercise.visual} size={heroSize} animated hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
+        {sideLabel(step) ? <Text style={[styles.sideBadge, isBodyweightStep && styles.bodyweightBadge]}>{sideLabel(step)}</Text> : null}
         <Text style={styles.exerciseName}>{step.exercise.name}</Text>
         <Text style={styles.target}>{displayedValue}</Text>
         <Text style={styles.unit}>{step.mode === 'reps' ? t('reps').toLowerCase() : t('seconds')}</Text>
@@ -415,12 +452,17 @@ function nextStepText(
   return '';
 }
 
-function Progress({ value }: { value: number }) {
-  return <View style={styles.progressTrack}><View style={[styles.progressBar, { width: `${Math.max(0, Math.min(1, value)) * 100}%` }]}/></View>;
+function Progress({ value, color = colors.accent }: { value: number; color?: string }) {
+  return <View style={styles.progressTrack}><View style={[styles.progressBar, { width: `${Math.max(0, Math.min(1, value)) * 100}%`, backgroundColor: color }]}/></View>;
 }
 
-function DoneStat({ label, value }: { label: string; value: string }) {
-  return <View style={styles.doneStat}><Text style={styles.doneStatLabel}>{label}</Text><Text style={styles.doneStatValue}>{value}</Text></View>;
+function DoneStat({ label, value, tone = 'kettlebell' }: { label: string; value: string; tone?: 'kettlebell' | 'bodyweight' }) {
+  return (
+    <View style={[styles.doneStat, tone === 'bodyweight' && styles.doneStatBodyweight]}>
+      <Text style={[styles.doneStatLabel, tone === 'bodyweight' && styles.bodyweightAccent]}>{label}</Text>
+      <Text style={styles.doneStatValue}>{value}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -444,6 +486,8 @@ const styles = StyleSheet.create({
   kicker: { color: colors.accent, fontSize: 12, fontWeight: '900', letterSpacing: 1.7, textAlign: 'center' },
   exerciseName: { color: colors.text, fontSize: 30, textAlign: 'center', fontWeight: '900', marginTop: 2 },
   sideBadge: { color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, overflow: 'hidden' },
+  bodyweightBadge: { color: colors.bodyweightText, backgroundColor: colors.bodyweight },
+  bodyweightAccent: { color: colors.bodyweight },
   target: { color: colors.text, fontSize: 88, lineHeight: 92, fontWeight: '900', marginTop: 2 },
   timer: { color: colors.text, fontSize: 92, lineHeight: 100, fontWeight: '900', marginTop: 6 },
   countdown: { color: colors.text, fontSize: 120, lineHeight: 130, fontWeight: '900', textAlign: 'center' },
@@ -461,13 +505,23 @@ const styles = StyleSheet.create({
   textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   textButtonText: { color: colors.muted, fontWeight: '800' },
   centerPage: { flex: 1, backgroundColor: colors.bg, alignItems: 'stretch', justifyContent: 'center', padding: 22, gap: 16 },
+  doneScroll: { flex: 1, backgroundColor: colors.bg },
+  doneContent: { paddingHorizontal: 22, gap: 16, justifyContent: 'center', flexGrow: 1 },
   doneTitle: { color: colors.text, fontSize: 34, textAlign: 'center', fontWeight: '900' },
   doneMeta: { color: colors.muted, fontSize: 15, textAlign: 'center' },
   savedNotice: { color: colors.accent, textAlign: 'center', fontSize: 12, fontWeight: '800' },
   doneStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 6 },
-  doneStat: { width: '48%', flexGrow: 1, backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, alignItems: 'center' },
+  doneStat: { width: '48%', flexGrow: 1, backgroundColor: colors.card, borderRadius: radius.lg, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
+  doneStatBodyweight: { backgroundColor: colors.bodyweightSoft, borderColor: colors.bodyweight },
   doneStatLabel: { color: colors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   doneStatValue: { color: colors.text, fontSize: 20, fontWeight: '900', marginTop: 4 },
+  bodyweightSummary: { backgroundColor: colors.bodyweightSoft, borderWidth: 1, borderColor: colors.bodyweight, borderRadius: radius.lg, padding: 14, gap: 10 },
+  bodyweightSummaryHeader: { gap: 3, marginBottom: 2 },
+  bodyweightSummaryTitle: { color: colors.bodyweight, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  bodyweightSummaryMeta: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  bodyweightSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 10 },
+  bodyweightSummaryName: { color: colors.text, fontSize: 14, fontWeight: '800', flex: 1 },
+  bodyweightSummaryValue: { color: colors.bodyweight, fontSize: 13, fontWeight: '900' },
   compare: { backgroundColor: colors.panel, borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 4 },
   compareLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   compareValue: { color: colors.text, fontSize: 18, fontWeight: '900' }
