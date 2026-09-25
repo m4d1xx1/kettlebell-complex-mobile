@@ -62,3 +62,37 @@ export function calculatePlanStats(plan: WorkoutPlan, catalog: ExerciseDefinitio
     estimatedSeconds: Math.round(estimatedWorkSecondsPerRound * plan.rounds + Math.max(0, plan.rounds - 1) * plan.restSeconds)
   };
 }
+
+
+export type BodyweightSummaryItem = {
+  exerciseId: string;
+  name: string;
+  reps: number;
+  seconds: number;
+};
+
+export function calculateBodyweightSummary(plan: WorkoutPlan, catalog: ExerciseDefinition[]) {
+  const steps = buildRoundSteps(plan, catalog).filter((step) => step.exercise.equipment === 'bodyweight');
+  const byExercise = new Map<string, BodyweightSummaryItem>();
+
+  for (const step of steps) {
+    const current = byExercise.get(step.exercise.id) ?? {
+      exerciseId: step.exercise.id,
+      name: step.exercise.name,
+      reps: 0,
+      seconds: 0
+    };
+
+    if (step.mode === 'reps') current.reps += step.value * plan.rounds;
+    else current.seconds += step.value * plan.rounds;
+
+    byExercise.set(step.exercise.id, current);
+  }
+
+  const items = [...byExercise.values()];
+  return {
+    totalReps: items.reduce((sum, item) => sum + item.reps, 0),
+    totalSeconds: items.reduce((sum, item) => sum + item.seconds, 0),
+    items
+  };
+}
