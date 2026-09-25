@@ -353,11 +353,38 @@ Current:
 - larger movement amplitude than original version
 - dedicated visuals for several bodyweight movements
 
-Still needs improvement:
-- current animations often move the whole glyph rather than individual joints / kettlebell path
-- future polish should animate body segments and implement more anatomically precise movement paths
+### Saved animation direction — next implementation priority
 
-This is one of the highest-value polish areas before public launch.
+The current animations are not detailed enough to teach or clearly demonstrate the real movement. In several exercises the whole glyph moves rather than the body performing the movement joint-by-joint.
+
+The next animation system should be pose / joint based:
+- animate hips, knees, shoulders, elbows and wrists independently
+- animate the kettlebell separately from the body
+- use a realistic kettlebell path for each exercise
+- clearly show start position, loading phase, drive / working phase, end position and return
+- prioritize technical readability over decorative motion
+- keep the existing fullscreen workout presentation and lightweight SVG approach where practical
+
+Examples:
+- Swing: clear hip hinge → hip drive → bell arc → return into hinge
+- Clean: bell travels close to the body and rotates smoothly into rack rather than simply moving upward
+- Snatch: visible pull, hand insertion / turnover and overhead lockout
+- Squat: visible hip and knee flexion with torso / bell position maintained correctly
+- Deadlift: hinge pattern with bell travelling vertically close to the body
+
+First exercises to rebuild with the improved system:
+1. Kettlebell Swing
+2. Clean
+3. Snatch
+4. Clean & Press
+5. Goblet Squat
+6. Deadlift
+7. Bent Over Row
+8. Reverse Lunge
+
+Once the pose / joint system works well for these movements, reuse the same architecture across the rest of the exercise library.
+
+This is one of the highest-value polish areas before public launch and is the next major visual implementation task.
 
 ## Storage / architecture
 
