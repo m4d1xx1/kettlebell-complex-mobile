@@ -72,7 +72,7 @@ export default function ExercisesScreen() {
           return (
             <View style={styles.row}>
               <Pressable onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
-                <ExerciseGlyph visual={item.visual} size={62}/>
+                <ExerciseGlyph visual={item.visual} size={76}/>
               </Pressable>
               <Pressable style={styles.center} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
                 <View style={styles.nameRow}>
