@@ -33,6 +33,7 @@ const defaultSettings: AppSettings = {
   voiceCues: false,
   countdownVoice: false,
   haptics: true,
+  manualContinueAfterRest: false,
   voiceLanguage: initialLanguage === 'sv' ? 'sv-SE' : 'en-US'
 };
 
