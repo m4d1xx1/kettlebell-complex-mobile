@@ -1,10 +1,8 @@
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { NumberStepper } from '../src/components/NumberStepper';
-import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useWorkoutCues } from '../src/hooks/useWorkoutCues';
 import { useI18n } from '../src/i18n';
-import { UILanguage, VoiceLanguage } from '../src/types';
 import { colors, radius } from '../src/theme';
 
 export default function SettingsScreen() {
@@ -12,33 +10,12 @@ export default function SettingsScreen() {
   const { t } = useI18n();
   const cues = useWorkoutCues(settings);
 
-  const appLanguages: Array<{ value: UILanguage; label: string }> = [
-    { value: 'en', label: 'English' },
-    { value: 'sv', label: 'Svenska' }
-  ];
-  const voiceLanguages: Array<{ value: VoiceLanguage; label: string }> = [
-    { value: 'en-US', label: 'English' },
-    { value: 'sv-SE', label: 'Svenska' }
-  ];
-
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.intro}>
         <Text style={styles.kicker}>{t('settings').toUpperCase()}</Text>
         <Text style={styles.title}>{t('eyesOnBell')}</Text>
         <Text style={styles.muted}>{t('configureSignals')}</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('appLanguage')}</Text>
-        <SegmentedControl
-          value={settings.uiLanguage}
-          options={appLanguages}
-          onChange={(uiLanguage) => updateSettings({
-            uiLanguage,
-            voiceLanguage: uiLanguage === 'sv' ? 'sv-SE' : 'en-US'
-          })}
-        />
       </View>
 
       <View style={styles.section}>
@@ -66,11 +43,6 @@ export default function SettingsScreen() {
           value={settings.manualContinueAfterRest}
           onValueChange={(manualContinueAfterRest) => updateSettings({ manualContinueAfterRest })}
         />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('voiceLanguage')}</Text>
-        <SegmentedControl value={settings.voiceLanguage} options={voiceLanguages} onChange={(voiceLanguage) => updateSettings({ voiceLanguage })}/>
       </View>
 
       <Pressable style={styles.test} onPress={() => { cues.cueCountdown(0); cues.announceComplete(); }}>
