@@ -28,7 +28,7 @@ export default function ExerciseDetailScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page}>
       <View style={styles.hero}>
-        <ExerciseGlyph visual={exercise.visual} size={190} animated hero/>
+        <ExerciseGlyph visual={exercise.visual} size={190} animated hero equipment={exercise.equipment ?? 'kettlebell'}/>
         <View style={styles.heroText}>
           <View style={styles.badges}>
             <Text style={styles.badge}>{categoryLabel(language, exercise.category).toUpperCase()}</Text>
