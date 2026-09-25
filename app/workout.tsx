@@ -2,7 +2,8 @@ import * as Haptics from 'expo-haptics';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { useWorkout } from '../src/context/WorkoutContext';
@@ -17,6 +18,11 @@ type Phase = 'ready' | 'countdown' | 'exercise' | 'rest' | 'done';
 
 export default function WorkoutScreen() {
   useKeepAwake();
+
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const heroSize = Math.min(width * 0.94, height * 0.50, 430);
+  const readyHeroSize = Math.min(width * 0.72, 290);
 
   const { plan, exercises, completeWorkout, settings, history } = useWorkout();
   const { t } = useI18n();
@@ -144,7 +150,7 @@ export default function WorkoutScreen() {
 
   if (!step || !roundSteps.length) {
     return (
-      <View style={styles.centerPage}>
+      <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
         <Text style={styles.doneTitle}>{t('noWorkoutLoaded')}</Text>
         <PrimaryButton label={t('backBuilder')} onPress={() => router.replace('/')}/>
       </View>
@@ -245,7 +251,7 @@ export default function WorkoutScreen() {
 
   if (phase === 'ready') {
     return (
-      <View style={styles.readyPage}>
+      <View style={[styles.readyPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
         <View style={styles.readyTop}>
           <Text style={styles.kicker}>{t('ready')}</Text>
           <Text style={styles.readyTitle}>{plan.name}</Text>
@@ -253,7 +259,7 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.preview}>
-          <ExerciseGlyph visual={step.exercise.visual} size={124} animated/>
+          <ExerciseGlyph visual={step.exercise.visual} size={readyHeroSize} animated hero/>
           <Text style={styles.previewLabel}>{t('firstUp')}</Text>
           <Text style={styles.previewName}>{step.exercise.name}</Text>
           {sideLabel(step) ? <Text style={styles.sideBadge}>{sideLabel(step)}</Text> : null}
@@ -275,7 +281,7 @@ export default function WorkoutScreen() {
 
   if (phase === 'countdown') {
     return (
-      <View style={styles.centerPage}>
+      <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
         <Text style={styles.kicker}>{t('getReady')}</Text>
         <Text style={styles.countdown}>{remaining || 'GO'}</Text>
         <Text style={styles.doneMeta}>{step.exercise.name}{sideLabel(step) ? ` · ${sideLabel(step)}` : ''}</Text>
@@ -293,7 +299,7 @@ export default function WorkoutScreen() {
         : `${formatDuration(Math.abs(delta))} ${delta < 0 ? t('faster') : t('slower')}`;
 
     return (
-      <View style={styles.centerPage}>
+      <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
         <Text style={styles.kicker}>{t('workoutComplete')}</Text>
         <Text style={styles.doneTitle}>{plan.name}</Text>
         <Text style={styles.savedNotice}>✓ {t('sessionSaved')}</Text>
@@ -319,7 +325,7 @@ export default function WorkoutScreen() {
 
   if (phase === 'rest') {
     return (
-      <View style={styles.workoutPage}>
+      <View style={[styles.workoutPage, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Progress value={progress}/>
         <View style={styles.statusRow}>
           <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
@@ -350,7 +356,7 @@ export default function WorkoutScreen() {
   const displayedValue = step.mode === 'time' ? remaining : step.value;
 
   return (
-    <View style={styles.workoutPage}>
+    <View style={[styles.workoutPage, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 12) }]}>
       <Progress value={progress}/>
       <View style={styles.statusRow}>
         <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
@@ -359,7 +365,7 @@ export default function WorkoutScreen() {
       </View>
 
       <View style={styles.main}>
-        <ExerciseGlyph visual={step.exercise.visual} size={116} animated/>
+        <ExerciseGlyph visual={step.exercise.visual} size={heroSize} animated hero/>
         {sideLabel(step) ? <Text style={styles.sideBadge}>{sideLabel(step)}</Text> : null}
         <Text style={styles.exerciseName}>{step.exercise.name}</Text>
         <Text style={styles.target}>{displayedValue}</Text>
@@ -426,11 +432,11 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   status: { color: colors.muted, fontSize: 12, fontWeight: '800' },
   elapsed: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  main: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  main: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', gap: 4 },
   kicker: { color: colors.accent, fontSize: 12, fontWeight: '900', letterSpacing: 1.7, textAlign: 'center' },
-  exerciseName: { color: colors.text, fontSize: 34, textAlign: 'center', fontWeight: '900', marginTop: 8 },
+  exerciseName: { color: colors.text, fontSize: 30, textAlign: 'center', fontWeight: '900', marginTop: 2 },
   sideBadge: { color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, overflow: 'hidden' },
-  target: { color: colors.text, fontSize: 82, lineHeight: 90, fontWeight: '900', marginTop: 8 },
+  target: { color: colors.text, fontSize: 88, lineHeight: 92, fontWeight: '900', marginTop: 2 },
   timer: { color: colors.text, fontSize: 92, lineHeight: 100, fontWeight: '900', marginTop: 6 },
   countdown: { color: colors.text, fontSize: 120, lineHeight: 130, fontWeight: '900', textAlign: 'center' },
   restLabel: { color: colors.text, fontSize: 30, fontWeight: '900', marginTop: 6 },
@@ -439,7 +445,7 @@ const styles = StyleSheet.create({
   weightText: { color: colors.text, fontWeight: '900' },
   next: { color: colors.muted, marginTop: 20, fontSize: 14, textAlign: 'center' },
   nextExercise: { color: colors.muted, marginTop: 12, fontSize: 12, fontWeight: '700' },
-  bottom: { gap: 10 },
+  bottom: { gap: 8 },
   split: { flexDirection: 'row', gap: 10 },
   outlineWide: { minHeight: 52, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   outlineHalf: { flex: 1, minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
