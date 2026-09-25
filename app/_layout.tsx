@@ -27,7 +27,7 @@ function AppStack() {
         <Stack.Screen name="saved" options={{ title: t('templates') }}/>
         <Stack.Screen name="history" options={{ title: t('history') }}/>
         <Stack.Screen name="settings" options={{ title: t('settings') }}/>
-        <Stack.Screen name="workout" options={{ title: t('appName'), gestureEnabled: false, headerBackVisible: false }}/>
+        <Stack.Screen name="workout" options={{ headerShown: false, gestureEnabled: false }}/>
       </Stack>
     </>
   );
