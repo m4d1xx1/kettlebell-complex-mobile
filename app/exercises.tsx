@@ -8,8 +8,8 @@ import { categoryLabel, difficultyLabel, useI18n } from '../src/i18n';
 import { ExerciseCategory } from '../src/types';
 import { colors, radius } from '../src/theme';
 
-type Filter = 'Favorites' | 'All' | ExerciseCategory;
-const filters: Filter[] = ['Favorites', 'All', 'Ballistic', 'Strength', 'Legs', 'Core'];
+type Filter = 'Favorites' | 'All' | 'Kettlebell' | 'Bodyweight' | ExerciseCategory;
+const filters: Filter[] = ['Favorites', 'All', 'Kettlebell', 'Bodyweight', 'Ballistic', 'Strength', 'Legs', 'Core'];
 
 export default function ExercisesScreen() {
   const [query, setQuery] = useState('');
@@ -22,7 +22,15 @@ export default function ExercisesScreen() {
     const favoriteSet = new Set(favoriteExerciseIds);
     return exercises
       .filter((x) => {
-        const categoryMatch = filter === 'All' || (filter === 'Favorites' ? favoriteSet.has(x.id) : x.category === filter);
+        const categoryMatch =
+          filter === 'All' ||
+          (filter === 'Favorites'
+            ? favoriteSet.has(x.id)
+            : filter === 'Kettlebell'
+              ? x.equipment !== 'bodyweight'
+              : filter === 'Bodyweight'
+                ? x.equipment === 'bodyweight'
+                : x.category === filter);
         const queryMatch = !query.trim() || x.name.toLowerCase().includes(query.trim().toLowerCase());
         return categoryMatch && queryMatch;
       })
@@ -32,6 +40,7 @@ export default function ExercisesScreen() {
   const filterLabel = (item: Filter) => {
     if (item === 'Favorites') return t('favorites');
     if (item === 'All') return t('all');
+    if (item === 'Kettlebell' || item === 'Bodyweight') return item;
     return categoryLabel(language, item);
   };
 
@@ -80,7 +89,7 @@ export default function ExercisesScreen() {
                   {item.custom ? <Text style={styles.customBadge}>{t('customBadge')}</Text> : null}
                 </View>
                 <Text style={styles.meta}>
-                  {categoryLabel(language, item.category)} · {difficultyLabel(language, item.difficulty ?? 'Intermediate')}
+                  {item.equipment === 'bodyweight' ? 'Bodyweight' : 'Kettlebell'} · {categoryLabel(language, item.category)} · {difficultyLabel(language, item.difficulty ?? 'Intermediate')}
                   {item.unilateral ? ' · L/R' : ''} · {item.defaultMode === 'reps' ? `${item.defaultValue} ${t('reps').toLowerCase()}` : `${item.defaultValue} ${t('sec')}`}
                 </Text>
               </Pressable>
