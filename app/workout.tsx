@@ -29,6 +29,10 @@ export default function WorkoutScreen() {
   const cues = useWorkoutCues(settings);
   const roundSteps = useMemo(() => buildRoundSteps(plan, exercises), [plan, exercises]);
   const stats = useMemo(() => calculatePlanStats(plan, exercises), [plan, exercises]);
+  const hasKettlebell = useMemo(
+    () => plan.items.some((item) => exercises.find((exercise) => exercise.id === item.exerciseId)?.equipment !== 'bodyweight'),
+    [plan.items, exercises]
+  );
 
   const [round, setRound] = useState(1);
   const [stepIndex, setStepIndex] = useState(0);
@@ -255,7 +259,9 @@ export default function WorkoutScreen() {
         <View style={styles.readyTop}>
           <Text style={styles.kicker}>{t('ready')}</Text>
           <Text style={styles.readyTitle}>{plan.name}</Text>
-          <Text style={styles.readyMeta}>{plan.rounds} {t('rounds').toLowerCase()} · {plan.weightKg} kg · {roundSteps.length} {t('step').toLowerCase()} / {t('round').toLowerCase()}</Text>
+          <Text style={styles.readyMeta}>
+            {plan.rounds} {t('rounds').toLowerCase()} · {hasKettlebell ? `${plan.weightKg} kg · ` : ''}{roundSteps.length} {t('step').toLowerCase()} / {t('round').toLowerCase()}
+          </Text>
         </View>
 
         <View style={styles.preview}>
@@ -308,7 +314,7 @@ export default function WorkoutScreen() {
           <DoneStat label={t('totalTime')} value={formatDuration(completedDuration)}/>
           <DoneStat label={t('avgRound')} value={formatDuration(Math.round(completedDuration / Math.max(1, plan.rounds)))}/>
           <DoneStat label={t('reps').toUpperCase()} value={String(stats.totalReps)}/>
-          <DoneStat label={t('load')} value={`${Math.round(stats.volumeKg / 100) / 10}t`}/>
+          {hasKettlebell ? <DoneStat label={t('load')} value={`${Math.round(stats.volumeKg / 100) / 10}t`}/> : null}
         </View>
 
         <View style={styles.compare}>
@@ -370,7 +376,9 @@ export default function WorkoutScreen() {
         <Text style={styles.exerciseName}>{step.exercise.name}</Text>
         <Text style={styles.target}>{displayedValue}</Text>
         <Text style={styles.unit}>{step.mode === 'reps' ? t('reps').toLowerCase() : t('seconds')}</Text>
-        <View style={styles.weightPill}><Text style={styles.weightText}>{plan.weightKg} kg</Text></View>
+        {step.exercise.equipment !== 'bodyweight' ? (
+          <View style={styles.weightPill}><Text style={styles.weightText}>{plan.weightKg} kg</Text></View>
+        ) : null}
         {nextStepText(stepIndex, roundSteps, round, plan.rounds, t('next'), t('roundRest'), sideLabel) ? (
           <Text style={styles.nextExercise}>{nextStepText(stepIndex, roundSteps, round, plan.rounds, t('next'), t('roundRest'), sideLabel)}</Text>
         ) : null}
