@@ -105,7 +105,12 @@ export default function WorkoutScreen() {
         enterStep(0, 1);
       } else if (phase === 'rest') {
         hapticSuccess();
-        enterStep(0, round + 1);
+        if (settings.manualContinueAfterRest) {
+          setRemaining(0);
+          setPaused(false);
+        } else {
+          enterStep(0, round + 1);
+        }
       } else if (phase === 'exercise' && step?.mode === 'time') {
         hapticSuccess();
         advance();
@@ -113,7 +118,7 @@ export default function WorkoutScreen() {
     }, 1000);
 
     return clearMainTimer;
-  }, [phase, paused, remaining, step?.stepKey, round]);
+  }, [phase, paused, remaining, step?.stepKey, round, settings.manualContinueAfterRest]);
 
   useEffect(() => {
     if (phase === 'exercise' && step) cues.announceStep(step);
@@ -321,15 +326,22 @@ export default function WorkoutScreen() {
           <Text style={styles.elapsed}>{formatDuration(elapsed)}</Text>
         </View>
         <View style={styles.main}>
-          <Text style={styles.kicker}>{t('roundComplete')}</Text>
+          <Text style={styles.kicker}>{remaining === 0 && settings.manualContinueAfterRest ? t('restComplete') : t('roundComplete')}</Text>
           <Text style={styles.restLabel}>{t('rest')}</Text>
           <Text style={styles.timer}>{remaining}</Text>
           <Text style={styles.unit}>{t('seconds')}</Text>
           <Text style={styles.next}>{t('next')}: {roundSteps[0].exercise.name}{sideLabel(roundSteps[0]) ? ` · ${sideLabel(roundSteps[0])}` : ''}</Text>
         </View>
         <View style={styles.bottom}>
-          <Pressable onPress={() => setPaused((x) => !x)} style={styles.outlineWide}><Text style={styles.outlineText}>{paused ? t('resume') : t('pause')}</Text></Pressable>
-          <PrimaryButton label={t('skipRest')} onPress={() => enterStep(0, round + 1)}/>
+          {remaining > 0 ? (
+            <Pressable onPress={() => setPaused((x) => !x)} style={styles.outlineWide}>
+              <Text style={styles.outlineText}>{paused ? t('resume') : t('pause')}</Text>
+            </Pressable>
+          ) : null}
+          <PrimaryButton
+            label={remaining === 0 && settings.manualContinueAfterRest ? t('continue') : t('skipRest')}
+            onPress={() => enterStep(0, round + 1)}
+          />
         </View>
       </View>
     );
