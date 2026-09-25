@@ -59,6 +59,13 @@ export default function SettingsScreen() {
         <SettingRow title={t('spokenCountdown')} description={t('spokenCountdownHelp')} value={settings.countdownVoice} disabled={!settings.voiceCues} onValueChange={(countdownVoice) => updateSettings({ countdownVoice })}/>
         <Divider/>
         <SettingRow title={t('haptics')} description={t('hapticsHelp')} value={settings.haptics} onValueChange={(haptics) => updateSettings({ haptics })}/>
+        <Divider/>
+        <CheckboxSettingRow
+          title={t('manualContinueAfterRest')}
+          description={t('manualContinueAfterRestHelp')}
+          value={settings.manualContinueAfterRest}
+          onValueChange={(manualContinueAfterRest) => updateSettings({ manualContinueAfterRest })}
+        />
       </View>
 
       <View style={styles.section}>
@@ -92,6 +99,27 @@ function SettingRow({ title, description, value, onValueChange, disabled = false
   );
 }
 
+function CheckboxSettingRow({ title, description, value, onValueChange }: {
+  title: string; description: string; value: boolean; onValueChange: (value: boolean) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: value }}
+      onPress={() => onValueChange(!value)}
+      style={styles.row}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={styles.rowDescription}>{description}</Text>
+      </View>
+      <View style={[styles.checkbox, value && styles.checkboxChecked]}>
+        {value ? <Text style={styles.checkboxMark}>✓</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 function Divider() { return <View style={styles.divider}/>; }
 
 const styles = StyleSheet.create({
@@ -109,6 +137,9 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
   rowDescription: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  checkbox: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel },
+  checkboxChecked: { borderColor: colors.accent, backgroundColor: colors.accent },
+  checkboxMark: { color: colors.accentText, fontSize: 18, fontWeight: '900', lineHeight: 20 },
   test: { minHeight: 54, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   testText: { color: colors.accent, fontWeight: '900' },
   info: { padding: 16, borderRadius: radius.lg, backgroundColor: colors.panel, gap: 5 },
