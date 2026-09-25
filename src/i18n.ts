@@ -2,7 +2,7 @@ import { useWorkout } from './context/WorkoutContext';
 import { ExerciseCategory, Difficulty, UILanguage } from './types';
 
 const copy = {
-  appName: { en: 'Kettlebell Complex', sv: 'Kettlebell Complex' },
+  appName: { en: 'MOVEWRK', sv: 'MOVEWRK' },
   builder: { en: 'Complex builder', sv: 'Complexbyggare' },
   history: { en: 'History', sv: 'Historik' },
   settings: { en: 'Settings', sv: 'Inställningar' },
