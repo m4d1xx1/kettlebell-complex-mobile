@@ -1,13 +1,23 @@
 {
   "expo": {
-    "name": "Kettlebell Complex",
+    "name": "MOVEWRK",
     "slug": "kettlebell-complex",
     "scheme": "kettlebellcomplex",
-    "version": "0.4.3",
+    "version": "0.5.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow MOVEWRK to access your photos.",
+          "savePhotosPermission": "Allow MOVEWRK to save workout summary images to your photos.",
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,
