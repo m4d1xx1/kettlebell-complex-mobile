@@ -1,11 +1,15 @@
 import * as Haptics from 'expo-haptics';
+import { Asset, requestPermissionsAsync } from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { captureRef } from 'react-native-view-shot';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { PrimaryButton } from '../src/components/PrimaryButton';
+import { WorkoutShareCard } from '../src/components/WorkoutShareCard';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useWorkoutCues } from '../src/hooks/useWorkoutCues';
 import { useI18n } from '../src/i18n';
@@ -51,6 +55,7 @@ export default function WorkoutScreen() {
   const startedAt = useRef<number | null>(null);
   const logged = useRef(false);
   const previousRef = useRef<WorkoutHistoryEntry | undefined>(undefined);
+  const shareCardRef = useRef<View | null>(null);
 
   const step = roundSteps[stepIndex];
   const isBodyweightStep = step?.exercise.equipment === 'bodyweight';
@@ -258,6 +263,49 @@ export default function WorkoutScreen() {
     logged.current = false;
   }
 
+  async function captureSummaryImage() {
+    if (!shareCardRef.current) throw new Error('Workout summary is not ready.');
+    return captureRef(shareCardRef, {
+      format: 'png',
+      quality: 1,
+      result: 'tmpfile'
+    });
+  }
+
+  async function saveSummaryImage() {
+    try {
+      const permission = await requestPermissionsAsync(true, ['photo']);
+      if (!permission.granted) {
+        Alert.alert('Photo access needed', 'Allow MOVEWRK to save workout images to Photos.');
+        return;
+      }
+      const uri = await captureSummaryImage();
+      await Asset.create(uri);
+      hapticSuccess();
+      Alert.alert('Saved', 'Your MOVEWRK workout image was saved to Photos.');
+    } catch {
+      Alert.alert('Could not save image', 'Please try again.');
+    }
+  }
+
+  async function shareSummaryImage() {
+    try {
+      const available = await Sharing.isAvailableAsync();
+      if (!available) {
+        Alert.alert('Sharing unavailable', 'Sharing is not available on this device.');
+        return;
+      }
+      const uri = await captureSummaryImage();
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        UTI: 'public.png',
+        dialogTitle: 'Share your MOVEWRK workout'
+      });
+    } catch {
+      Alert.alert('Could not share', 'Please try again.');
+    }
+  }
+
   if (phase === 'ready') {
     return (
       <View style={[styles.readyPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
@@ -314,45 +362,35 @@ export default function WorkoutScreen() {
         style={styles.doneScroll}
         contentContainerStyle={[
           styles.doneContent,
-          { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 24) }
+          { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 24) }
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.kicker, bodyweightOnly && styles.bodyweightAccent]}>{t('workoutComplete')}</Text>
-        <Text style={styles.doneTitle}>{plan.name}</Text>
-        <Text style={[styles.savedNotice, bodyweightOnly && styles.bodyweightAccent]}>✓ {t('sessionSaved')}</Text>
+        <WorkoutShareCard
+          ref={shareCardRef}
+          planName={plan.name}
+          completedDuration={completedDuration}
+          rounds={plan.rounds}
+          totalReps={stats.totalReps}
+          weightKg={plan.weightKg}
+          volumeKg={stats.volumeKg}
+          hasKettlebell={hasKettlebell}
+          bodyweightReps={bodyweightSummary.totalReps}
+          bodyweightSeconds={bodyweightSummary.totalSeconds}
+          bodyweightItems={bodyweightSummary.items}
+        />
 
-        <View style={styles.doneStats}>
-          <DoneStat label={t('totalTime')} value={formatDuration(completedDuration)}/>
-          <DoneStat label={t('avgRound')} value={formatDuration(Math.round(completedDuration / Math.max(1, plan.rounds)))}/>
-          <DoneStat label={t('reps').toUpperCase()} value={String(stats.totalReps)}/>
-          {hasKettlebell ? <DoneStat label={t('load')} value={`${Math.round(stats.volumeKg / 100) / 10}t`}/> : null}
-          {bodyweightSummary.totalReps > 0 ? <DoneStat label="BW REPS" value={String(bodyweightSummary.totalReps)} tone="bodyweight"/> : null}
-          {bodyweightSummary.totalSeconds > 0 ? <DoneStat label="BW TIME" value={formatDuration(bodyweightSummary.totalSeconds)} tone="bodyweight"/> : null}
+        <View style={styles.shareActions}>
+          <Pressable onPress={saveSummaryImage} style={styles.shareButton}>
+            <Text style={styles.shareButtonIcon}>↓</Text>
+            <Text style={styles.shareButtonText}>Save image</Text>
+          </Pressable>
+          <Pressable onPress={shareSummaryImage} style={[styles.shareButton, styles.shareButtonPrimary]}>
+            <Text style={[styles.shareButtonIcon, styles.shareButtonPrimaryText]}>↗</Text>
+            <Text style={[styles.shareButtonText, styles.shareButtonPrimaryText]}>Share</Text>
+          </Pressable>
         </View>
-
-        {hasBodyweight ? (
-          <View style={styles.bodyweightSummary}>
-            <View style={styles.bodyweightSummaryHeader}>
-              <Text style={styles.bodyweightSummaryTitle}>BODYWEIGHT WORK</Text>
-              <Text style={styles.bodyweightSummaryMeta}>
-                {bodyweightSummary.totalReps > 0 ? `${bodyweightSummary.totalReps} reps` : ''}
-                {bodyweightSummary.totalReps > 0 && bodyweightSummary.totalSeconds > 0 ? ' · ' : ''}
-                {bodyweightSummary.totalSeconds > 0 ? formatDuration(bodyweightSummary.totalSeconds) : ''}
-              </Text>
-            </View>
-            {bodyweightSummary.items.map((item) => (
-              <View key={item.exerciseId} style={styles.bodyweightSummaryRow}>
-                <Text style={styles.bodyweightSummaryName}>{item.name}</Text>
-                <Text style={styles.bodyweightSummaryValue}>
-                  {item.reps > 0 ? `${item.reps} reps` : ''}
-                  {item.reps > 0 && item.seconds > 0 ? ' · ' : ''}
-                  {item.seconds > 0 ? formatDuration(item.seconds) : ''}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
+        <Text style={styles.shareTargets}>Instagram · Facebook · TikTok · X · Messages · More</Text>
 
         <View style={styles.compare}>
           <Text style={styles.compareLabel}>{t('vsLast')}</Text>
@@ -506,7 +544,7 @@ const styles = StyleSheet.create({
   textButtonText: { color: colors.muted, fontWeight: '800' },
   centerPage: { flex: 1, backgroundColor: colors.bg, alignItems: 'stretch', justifyContent: 'center', padding: 22, gap: 16 },
   doneScroll: { flex: 1, backgroundColor: colors.bg },
-  doneContent: { paddingHorizontal: 22, gap: 16, justifyContent: 'center', flexGrow: 1 },
+  doneContent: { paddingHorizontal: 14, gap: 14, flexGrow: 1 },
   doneTitle: { color: colors.text, fontSize: 34, textAlign: 'center', fontWeight: '900' },
   doneMeta: { color: colors.muted, fontSize: 15, textAlign: 'center' },
   savedNotice: { color: colors.accent, textAlign: 'center', fontSize: 12, fontWeight: '800' },
@@ -522,6 +560,13 @@ const styles = StyleSheet.create({
   bodyweightSummaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, paddingTop: 10 },
   bodyweightSummaryName: { color: colors.text, fontSize: 14, fontWeight: '800', flex: 1 },
   bodyweightSummaryValue: { color: colors.bodyweight, fontSize: 13, fontWeight: '900' },
+  shareActions: { flexDirection: 'row', gap: 10 },
+  shareButton: { flex: 1, minHeight: 54, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  shareButtonPrimary: { backgroundColor: colors.accent, borderColor: colors.accent },
+  shareButtonIcon: { color: colors.text, fontSize: 19, fontWeight: '900' },
+  shareButtonText: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  shareButtonPrimaryText: { color: colors.accentText },
+  shareTargets: { color: colors.muted, fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: -5 },
   compare: { backgroundColor: colors.panel, borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 4 },
   compareLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   compareValue: { color: colors.text, fontSize: 18, fontWeight: '900' }
