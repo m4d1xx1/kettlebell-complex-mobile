@@ -4,6 +4,43 @@ Last updated: 2026-09-29
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
 
+## Latest handover — layout accepted for now (2026-09-29)
+
+- Verified GitHub `main` before this documentation update:
+  `9efe0b49d8a50ea80549775839b3ed811c9fb88c`.
+  All app implementation changes described in the priority-list section are published.
+  There were no uncommitted app code changes at this handover.
+- GitHub Actions run #81 (36568995510) completed successfully for that commit,
+  including TypeScript and both core/integration regression suites.
+- The user reviewed the current layout walkthrough and said it looks good for now.
+  Preserve this visual direction as the current baseline; this is not final release
+  approval or confirmation of physical-device testing.
+- Delivered `MOVEWRK-layout-preview.gif`: approximately 36 seconds showing the builder,
+  vertical equipment dropdown and exercise list, technique/pairings, bodyweight details,
+  pre-workout overview, fullscreen kettlebell/bodyweight execution and results/share card.
+  It was rendered from the actual screen components at a 390 x 844 viewport using
+  React Native Web with preview-only native/navigation adapters and sample workout data.
+  It is NOT an iPhone recording or a test of native persistence, audio or sharing.
+  The GIF is saved with the conversation; preview adapters and temporary dependencies
+  are outside the repository and are not part of the mobile app.
+- No app source or dependency changes were made to produce this walkthrough.
+
+Next session:
+1. Read this handoff and recheck GitHub `main`; use the repository as the code source.
+2. Test on the user's iPhone when available: builder/selection/detail navigation,
+   scrolling on small screens and large text, rep entry with keyboard, pause/resume,
+   interruption/relaunch recovery, audio cues, image saving and native sharing.
+3. Review every movement for technique, grip/foot contacts and floor alignment.
+   The full fixed-length 2-D rig is implemented; human movement validation remains open.
+   Start with `src/animation/exercisePoses.ts`, `src/animation/bodyRig.ts` and
+   `src/components/PoseExerciseFigure.tsx` for any further animation corrections.
+4. Address observed device issues before expanding the roadmap. Keep English-only,
+   temporary MOVEWRK branding, cyan bodyweight, lime kettlebell, red muscle zones,
+   fullscreen execution, bodyweight summaries and share cards. Do not restore arrows.
+
+Earlier dated local/publication notes below describe history and are superseded by
+this published-state handover and the priority-list implementation section.
+
 ## Publication snapshot — 2026-09-29
 
 This snapshot includes all development through local commit `bf425bb`, including
@@ -52,11 +89,12 @@ Expo SDK: `57`
 React Native: `0.86.3`
 React: `19.2.3`
 
-Latest verified GitHub Actions run is green: #80 for `f335ab9`. Validation includes:
+Latest verified implementation GitHub Actions run is green: #81 for `9efe0b4`. Validation includes:
 - npm install
 - Expo package alignment
 - Expo Doctor
 - TypeScript
+- Core and provider/lifecycle integration regression suites
 
 ## Current working name
 
