@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Dropdown } from '../src/components/Dropdown';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
@@ -11,12 +12,15 @@ import { colors, radius } from '../src/theme';
 export default function CustomExerciseScreen() {
   const { addCustomExercise } = useWorkout();
   const { t, language } = useI18n();
+  const creating = useRef(false);
+  const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
+  const [equipment, setEquipment] = useState<'kettlebell' | 'bodyweight'>('kettlebell');
   const [category, setCategory] = useState<ExerciseCategory>('Strength');
   const [mode, setMode] = useState<ExerciseMode>('reps');
   const [value, setValue] = useState('10');
   const [unilateral, setUnilateral] = useState(false);
-  const valid = name.trim().length >= 2 && Number(value) > 0;
+  const valid = name.trim().length >= 2 && Number.isInteger(Number(value)) && Number(value) > 0 && Number(value) <= 300;
 
   const categories: Array<{ value: ExerciseCategory; label: string }> =
     (['Ballistic', 'Strength', 'Legs', 'Core'] as ExerciseCategory[]).map((value) => ({ value, label: categoryLabel(language, value) }));
@@ -30,6 +34,7 @@ export default function CustomExerciseScreen() {
       <Text style={styles.label}>{t('exerciseName')}</Text>
       <TextInput value={name} onChangeText={setName} maxLength={40} placeholder="Bottom-up Press" placeholderTextColor={colors.muted} style={styles.input}/>
 
+      <Dropdown label="Equipment" value={equipment} options={[{ value: 'kettlebell', label: 'Kettlebell', color: colors.accent }, { value: 'bodyweight', label: 'Bodyweight', color: colors.bodyweight }]} onChange={value => setEquipment(value === 'bodyweight' ? 'bodyweight' : 'kettlebell')}/>
       <Text style={styles.label}>{t('category')}</Text>
       <SegmentedControl value={category} options={categories} onChange={setCategory}/>
 
@@ -51,10 +56,14 @@ export default function CustomExerciseScreen() {
 
       <PrimaryButton
         label={t('createAdd')}
-        disabled={!valid}
+        disabled={!valid || busy}
         onPress={async () => {
-          await addCustomExercise({ name, category, mode, value: Math.min(300, Math.max(1, Number(value))), unilateral });
-          router.back();
+          if (creating.current) return;
+          creating.current = true; setBusy(true);
+          try {
+          const didSave = await addCustomExercise({ name, category, mode, value: Math.min(300, Math.max(1, Number(value))), unilateral, equipment });
+          if (didSave) router.back();
+          } finally { creating.current = false; setBusy(false); }
         }}
       />
       <Pressable onPress={() => router.back()} style={styles.cancel}><Text style={styles.cancelText}>{t('cancel')}</Text></Pressable>

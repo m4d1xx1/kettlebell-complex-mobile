@@ -1,6 +1,9 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { WorkoutHistoryEntry } from '../src/types';
+import { exportStoredCopies } from '../src/storage/store';
 import { router } from 'expo-router';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useMemo } from 'react';
+import { Alert, Share, Modal, ScrollView, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useI18n } from '../src/i18n';
 import { colors, radius } from '../src/theme';
@@ -13,11 +16,13 @@ function startOfLocalDay(date: Date) {
 }
 
 export default function HistoryScreen() {
-  const { history, clearHistory, loadHistoryPlan } = useWorkout();
+  const { history, pendingHistory, retryPending, recoverHistory, clearHistory, loadHistoryPlan } = useWorkout();
+  const [dataTools, setDataTools] = useState(false);
+  const [detail, setDetail] = useState<WorkoutHistoryEntry | null>(null);
   const { t, locale } = useI18n();
 
   const summary = useMemo(() => {
-    const totalWorkouts = history.length;
+    const totalWorkouts = history.filter(entry => entry.status !== 'partial').length;
     const totalReps = history.reduce((sum, x) => sum + x.totalReps, 0);
     const totalVolume = history.reduce((sum, x) => sum + x.volumeKg, 0);
     const totalSeconds = history.reduce((sum, x) => sum + x.durationSeconds, 0);
@@ -34,7 +39,7 @@ export default function HistoryScreen() {
       return {
         key: date.toISOString(),
         label: date.toLocaleDateString(locale, { weekday: 'short' }).slice(0, 2),
-        workouts: entries.length,
+        workouts: entries.filter(entry => entry.status !== 'partial').length,
         seconds: entries.reduce((sum, x) => sum + x.durationSeconds, 0)
       };
     });
@@ -52,6 +57,16 @@ export default function HistoryScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.header}>
+            {pendingHistory.length > 0 && <View style={styles.weekCard}>
+              <Text style={styles.weekTitle}>{pendingHistory.length} workouts safely waiting for history</Text>
+              {pendingHistory.map(entry => <Text key={entry.id} style={styles.muted}>{entry.planName} · {formatDuration(entry.durationSeconds)}</Text>)}
+              <Pressable onPress={retryPending} style={styles.clear}><Text style={styles.weekTitle}>Retry history saving</Text></Pressable>
+            </View>}
+            <Pressable accessibilityRole="button" accessibilityState={{expanded:dataTools}} onPress={() => setDataTools(!dataTools)} style={styles.clear}><Text style={styles.muted}>Data backup and recovery {dataTools ? '▴' : '▾'}</Text></Pressable>
+            {(dataTools || pendingHistory.length > 0) && <>
+            <Pressable style={styles.clear} onPress={() => { void exportStoredCopies().then(message => Share.share({ message, title: 'MOVEWRK data backup' })).catch(() => Alert.alert('Export failed', 'Your saved data has not been changed.')); }}><Text style={styles.muted}>Export data and recovery copies</Text></Pressable>
+            <Pressable style={styles.clear} onPress={() => Alert.alert('Archive and reset history?', 'The original history will be preserved in an exportable recovery copy. A fresh history will be created and pending workouts imported.', [{text:'Cancel',style:'cancel'},{text:'Archive and reset',onPress:recoverHistory}])}><Text style={styles.muted}>Recover damaged history</Text></Pressable>
+            </>}
             <View>
               <Text style={styles.kicker}>{t('trainingHistory')}</Text>
               <Text style={styles.headerTitle}>{t('consistency')}</Text>
@@ -100,8 +115,11 @@ export default function HistoryScreen() {
           <View style={styles.card}>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{item.planName}</Text>
+              {item.results && <Pressable onPress={() => setDetail(item)}><Text style={styles.small}>View exercise results ›</Text></Pressable>}
+              {item.status === 'partial' && <Text style={{color:colors.warning,fontSize:12}}>Partial workout · recorded work only</Text>}
+              {item.timeBasis && <Text style={styles.small}>Work {formatDuration(item.workSeconds ?? 0)} · Rest {formatDuration(item.restSeconds ?? 0)} · Paused {formatDuration(item.pauseSeconds ?? 0)}</Text>}
               <Text style={styles.muted}>{new Date(item.completedAt).toLocaleString(locale)}</Text>
-              <Text style={styles.small}>{item.rounds} {t('rounds').toLowerCase()} · {item.exerciseCount} {t('exercises').toLowerCase()} · {item.weightKg} kg</Text>
+              <Text style={styles.small}>{item.rounds} {t('rounds').toLowerCase()} · {item.exerciseCount} {t('exercises').toLowerCase()}{item.weightKg > 0 ? ` · ${item.weightKg} kg` : ' · Bodyweight'}</Text>
             </View>
             <View style={styles.metrics}>
               <Text style={styles.metric}>{formatDuration(item.durationSeconds)}</Text>
@@ -115,6 +133,19 @@ export default function HistoryScreen() {
           </View>
         )}
       />
+      <Modal visible={!!detail} animationType="slide" onRequestClose={() => setDetail(null)}>
+        <SafeAreaView style={{flex:1,backgroundColor:colors.bg}}>
+          <Pressable accessibilityRole="button" onPress={() => setDetail(null)} style={{padding:20,minHeight:48}}><Text style={styles.weekTitle}>Close results</Text></Pressable>
+          <ScrollView contentContainerStyle={{padding:20,gap:16}}>
+            <Text style={styles.headerTitle}>{detail?.planName}</Text>
+            {detail?.results?.map(r => <View key={`${r.round}:${r.index}`} style={styles.weekCard}>
+              <Text style={styles.weekTitle}>Round {r.round} · {r.name}</Text>
+              <Text style={styles.muted}>{r.side !== 'none' ? `${r.side} · ` : ''}{r.mode === 'reps' ? `${r.reps}/${r.target} reps` : `${formatDuration(Math.floor(r.seconds))}/${formatDuration(r.target)}`}</Text>
+              <Text style={styles.small}>{r.completed ? 'Completed' : 'Partial / skipped'}{r.workSeconds !== undefined ? ` · Work ${formatDuration(Math.round(r.workSeconds))}` : ''}</Text>
+            </View>)}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }

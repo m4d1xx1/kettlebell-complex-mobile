@@ -1,8 +1,18 @@
 # PROJECT HANDOFF — Fitness App
 
-Last updated: 2026-09-26
+Last updated: 2026-09-29
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
+
+## Publication snapshot — 2026-09-29
+
+This snapshot includes all development through local commit `bf425bb`, including
+animations, vertical exercise selection and both reliability/audit updates. It is
+prepared for publication to GitHub `main` as one consolidated commit via the GitHub
+connector. Earlier statements that changes are local describe the pre-publication
+state; when this snapshot is present on GitHub main, those pending-upload notes are
+superseded. The GitHub publication SHA differs from the local development SHA.
+Read the audit-fixes section for remaining animation and physical-device validation.
 
 ## Current status
 
@@ -116,6 +126,111 @@ Development order:
 - Custom exercises
 - Exercise favorites
 - Search and category filtering
+
+### Exercise selection update — 2026-09-29
+
+- `app/exercises.tsx` uses vertical Equipment and Movement category dropdowns,
+  search and a favorites switch. There are no horizontal filter lists.
+- Equipment options: Kettlebell + Bodyweight, Kettlebell, Bodyweight.
+- Each exercise has a real checked state derived from the current workout.
+  Selection adds once; unchecking removes all occurrences of that exercise.
+  Existing duplicate entries are counted and the removal behavior is labeled.
+- Selection remains current across filters and detail navigation; the fixed Done
+  button shows the total selected across all equipment, with bottom safe-area padding.
+- Names/illustrations open technique, muscle focus and difficulty information.
+  Builder exercise names also open the same detail route.
+- `src/data/exercisePairings.ts` provides three explained, clickable suggestions
+  for every built-in exercise (96 links). Bodyweight suggestions need no equipment.
+  Suggestions have checkboxes synchronized with the workout.
+- `src/components/Dropdown.tsx` is reused for equipment, categories and templates.
+  Template selection is vertical; saved workouts remain accessible separately.
+- `toggleExerciseSelection` in WorkoutContext atomically adds/removes selection;
+  other entries, weights, rounds and rep settings are preserved.
+- TypeScript, iOS export and pairing/selection checks pass. Physical-phone interaction and
+  keyboard/layout validation remain pending; changes are local until GitHub push.
+
+### Audit fixes — 2026-09-29 (local, after 91f13b0)
+
+Remote main was rechecked before editing and remains `a5087f5f6fcd8e38bb671425e773ec4d88abe138`.
+This section supersedes affected implementation details in the earlier reliability update.
+
+1. **Concurrent edits:** `updateStored` serializes the complete validated read/modify/write
+   operation. Custom exercises, saved plans, favorites, settings and history use it.
+   Custom creation has an immediate in-flight guard. Saved plans no longer silently cap at 75.
+2. **Recovery:** failed history writes go to a separately persisted, deduplicated pending queue.
+   The active checkpoint is removed only after history or pending storage succeeds. The result
+   page allows returning to the builder even if saving fails; an unsaved checkpoint still takes
+   priority on reopening. History offers retry, archive-before-reset and native text export of
+   all original/backup values. Damaged active checkpoints also have archive/reset recovery.
+   If storage itself refuses every write, a new session cannot safely replace the active one.
+3. **Timing:** the live clock is `performance.now()`. Calendar changes cannot progress or
+   freeze a workout. Restored sessions rebase the monotonic timestamp and remain paused.
+   IDs and `finishedAt` use calendar time separately. New history uses `monotonic-v2`.
+4. **Detailed results:** history stores round, index, exercise ID/name, equipment, side, mode,
+   target, confirmed reps, timed seconds, step work time and completion state. Actual finish
+   time is retained through retries. History details are scrollable; legacy results are retained.
+5. **Comparisons:** compare only work time for matching completed v2 sessions; show rest and
+   pause values separately and explain that faster is not inherently better technique.
+6. **Animation — partially addressed:** all 32 movements now stabilize projected forearm
+   lengths while retaining authored grip paths and limiting elbows to the floor plane. Biceps,
+   triceps, quads, hamstrings, hip flexors, chest, upper back and lats use distinct drawn zones.
+   Fixed two-bone arm IK was tried and rejected because it bent swing/overhead lockouts.
+   Upper arms, legs and trunk still use authored projection. **A full anatomical rig and
+   qualified movement review are NOT complete.** Do not represent these as verified teaching
+   animations. The red zones are schematic, not a physiological activation measurement.
+7. **Quick workouts:** all equipment/experience/focus combinations now alter actual exercise
+   selection and/or reps, holds and rest. Estimates still depend on rep pace, and weight is
+   reviewed by the user before starting.
+8. **Complete results/sharing:** the app displays every recorded step; the 9:16 share card
+   is intentionally condensed to four bodyweight rows with an explicit remaining count and
+   full totals. Card typography/spacing scales down on narrower screens.
+
+Validation: TypeScript, `test:core`, deterministic provider/lifecycle integration tests,
+32 × 101 animation samples, four rendered poses per exercise, and Expo iOS export pass.
+Integration tests execute real provider/hook modules with mocked React/native adapters:
+concurrent creates/deletes, retention beyond 75 plans, pending results, preserved archives,
+archive-write failure, idempotent retries, wall-clock jumps, background pause, remount and
+checkpoint acknowledgement. Both suites are added to `.github/workflows/validate.yml`.
+These are not device E2E tests. Still verify iPhone/Android UI, VoiceOver/font scaling, audio,
+background/kill timing and share-sheet behavior. Text-export size limits depend on receiver.
+No GitHub push has succeeded; all new changes remain local.
+
+### Reliability and usability update — 2026-09-29 (local)
+
+Remote `main` rechecked: `a5087f5f6fcd8e38bb671425e773ec4d88abe138`.
+The animation/picker commits and this update remain local; do not assume GitHub contains them.
+
+- `src/workout/session.ts` is the pure timestamp-based workout engine. It snapshots
+  the plan/catalog, records confirmed reps and actual timed work, and separates work,
+  rest and paused time. Countdown is excluded. Skips/early finishes produce partial results.
+- `src/hooks/useWorkoutSession.ts` checkpoints once per second and on transitions,
+  pauses on background/unmount, restores paused, and serializes checkpoint writes.
+  Sudden process termination can lose up to the latest checkpoint interval. Recovery
+  does not count unobserved offline time as exercise.
+- Completion history is written before removing the checkpoint. Session IDs prevent
+  duplicate entries after retries/recovery; failures remain visible with retry controls.
+- `src/storage/store.ts` and `validation.ts` validate saved data, isolate failed keys,
+  serialize writes and protect unreadable originals from default-state overwrites.
+  Recovery of genuinely corrupt data still requires a dedicated repair/export UI.
+- Results/share cards show actual completed rounds, reps and bodyweight seconds.
+  Partial sessions are labeled. Comparable history requires the same expanded plan,
+  load, rest settings and new time basis; legacy entries are preserved but excluded.
+- Pause works for timed and rep exercises; animations/audio stop while paused.
+  End-workout confirmation offers continue, save partial, or discard. Backtracking
+  replaces the previous result while retaining time actually spent.
+- Builder offers a saved-session entry point, undo removal, and reviewed quick-workout
+  plans by equipment/time/experience/focus. Estimates depend on rep pace.
+- Custom exercises support Bodyweight. Exercise pairings rank missing movement
+  categories ahead of already selected exercises and explain the current-plan context.
+- Approved figure styling and authored poses remain. Left/right presentation, alternating
+  cycles and reduced-motion support are added. A fixed-bone IK trial was rejected after
+  visual inspection because it degraded several poses. A consistent anatomical rig and
+  qualified movement-technique review remain separate follow-up work.
+- Verification: `npm run typecheck`, `npm run test:core`, and Expo iOS export.
+  Core tests cover delays, pauses, manual rest, partial/skip/back results, recovery,
+  real epoch timestamps, quick-plan variants, fingerprints, validators and storage failures.
+  This is not a physical-device test: validate background/kill/reopen, audio, small-screen
+  layouts, swipe/back behavior, undo, and sharing on iOS/Android before release.
 
 ### Workout execution
 - Fullscreen workout route
@@ -231,7 +346,7 @@ Current presets:
 - BW HIIT
 - BW Core
 
-The preset bar is horizontally scrollable.
+Workout templates are selected through a vertical dropdown; there is no horizontal preset bar.
 
 Future goal:
 - build toward roughly 30–50 quality launch templates
@@ -346,6 +461,11 @@ Example future progression:
 
 ## Exercise animation
 
+**User-approved style (2026-09-29):** The filled SVG silhouette, depth shading,
+coral muscle markers, cyan bodyweight and lime kettlebell styling are approved
+for every exercise. See `ANIMATION_STYLE.md` for the saved specification and
+complete 32-exercise coverage list. Use it for all future exercise additions.
+
 Current:
 - native SVG figures
 - lightweight animated movement
@@ -354,6 +474,35 @@ Current:
 - dedicated visuals for several bodyweight movements
 
 ### Saved animation direction — next implementation priority
+
+Implementation progress (2026-09-29, local commits pending GitHub write access):
+- All 32 built-in exercises (23 loaded, 9 bodyweight) now resolve by exercise ID
+  to their own pose sequence and curated schematic muscle focus.
+- `src/animation/exercisePoses.ts` owns poses, timing, equipment, focus areas,
+  static holds and smooth interpolation. `src/components/PoseExerciseFigure.tsx`
+  renders tapered limbs, torso, connected neck, foreground/background depth,
+  floor shadow and a shaded kettlebell attached to the working hand.
+- Muscle areas use the accepted coral red `#E96B73`. The markers are schematic
+  regions, not precise anatomy or measured activation. Bodyweight stays cyan;
+  loaded equipment stays lime. Bodyweight rendering never includes a bell.
+- Former shared visuals now have distinct motion profiles (e.g. side plank,
+  mountain climber, push press, thruster, clean & press, single-arm swing).
+- Plank, side plank, rack hold and suitcase hold use static poses. Other motions
+  reset on exercise changes and stop when unmounted or animation is disabled.
+- The exercise detail illustration is larger and has an English muscle legend.
+  All builder, library, detail and workout callers pass the exercise ID.
+- Unknown custom exercises use a generic visual without unverified muscle
+  highlights; they need their own mapping to receive specific muscle focus.
+- Verification: TypeScript, 3,232 sampled poses across all 32 exercises, matching
+  equipment, muscle coverage, finite coordinates and continuous loop endpoints.
+  Four key poses per exercise were rendered and visually inspected. Expo iOS
+  production export also passed. Web export cannot run with the existing
+  dependency set because react-native-web is absent; no dependencies changed. Device
+  performance and physical-iPhone visual validation remain pending.
+- Next: review the new animation library on iPhone and refine technique/poses
+  based on that review. Do not restore the old whole-glyph transforms.
+
+### Original animation brief (retained for reference)
 
 The current animations are not detailed enough to teach or clearly demonstrate the real movement. In several exercises the whole glyph moves rather than the body performing the movement joint-by-joint.
 

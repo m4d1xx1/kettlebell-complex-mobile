@@ -1,7 +1,7 @@
 export type ExerciseMode = 'reps' | 'time';
 export type ExerciseCategory = 'Ballistic' | 'Strength' | 'Legs' | 'Core';
 export type SideMode = 'both' | 'left' | 'right' | 'alternate';
-export type ExerciseVisual = 'swing' | 'clean' | 'press' | 'snatch' | 'squat' | 'lunge' | 'row' | 'deadlift' | 'halo' | 'carry' | 'pushup' | 'plank' | 'burpee' | 'bridge' | 'high-knees' | 'windmill' | 'floor-press';
+export type ExerciseVisual = 'swing' | 'clean' | 'high-pull' | 'press' | 'snatch' | 'squat' | 'lunge' | 'row' | 'deadlift' | 'halo' | 'carry' | 'pushup' | 'plank' | 'burpee' | 'bridge' | 'high-knees' | 'windmill' | 'floor-press';
 export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 export type VoiceLanguage = 'en-US' | 'sv-SE';
 export type UILanguage = 'en' | 'sv';
@@ -55,6 +55,15 @@ export type WorkoutHistoryEntry = {
   totalReps: number;
   volumeKg: number;
   plan?: WorkoutPlan;
+  sessionId?: string;
+  status?: 'completed' | 'partial';
+  timeBasis?: 'active-v1' | 'monotonic-v2';
+  results?: Array<{ round: number; index: number; exerciseId: string; name: string; equipment: 'kettlebell' | 'bodyweight'; side: SideMode | 'none'; mode: ExerciseMode; target: number; reps: number; seconds: number; workSeconds?: number; completed: boolean }>;
+  fingerprint?: string;
+  workSeconds?: number;
+  restSeconds?: number;
+  pauseSeconds?: number;
+  wallSeconds?: number;
 };
 
 export type AppSettings = {

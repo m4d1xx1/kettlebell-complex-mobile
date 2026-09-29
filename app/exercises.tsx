@@ -1,163 +1,68 @@
+import { UndoNotice } from '../src/components/UndoNotice';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Dropdown } from '../src/components/Dropdown';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
+import { PrimaryButton } from '../src/components/PrimaryButton';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { categoryLabel, difficultyLabel, useI18n } from '../src/i18n';
-import { ExerciseCategory } from '../src/types';
 import { colors, radius } from '../src/theme';
-
-type Filter = 'Favorites' | 'All' | 'Kettlebell' | 'Bodyweight' | ExerciseCategory;
-const filters: Filter[] = ['Favorites', 'All', 'Kettlebell', 'Bodyweight', 'Ballistic', 'Strength', 'Legs', 'Core'];
 
 export default function ExercisesScreen() {
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('All');
-  const [lastAdded, setLastAdded] = useState<string | null>(null);
-  const { addExercise, exercises, favoriteExerciseIds, toggleExerciseFavorite, settings } = useWorkout();
+  const [equipment, setEquipment] = useState('all');
+  const [category, setCategory] = useState('all');
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const { plan, toggleExerciseSelection, exercises, favoriteExerciseIds, toggleExerciseFavorite, settings } = useWorkout();
   const { t, language } = useI18n();
-
-  const data = useMemo(() => {
-    const favoriteSet = new Set(favoriteExerciseIds);
-    return exercises
-      .filter((x) => {
-        const categoryMatch =
-          filter === 'All' ||
-          (filter === 'Favorites'
-            ? favoriteSet.has(x.id)
-            : filter === 'Kettlebell'
-              ? x.equipment !== 'bodyweight'
-              : filter === 'Bodyweight'
-                ? x.equipment === 'bodyweight'
-                : x.category === filter);
-        const queryMatch = !query.trim() || x.name.toLowerCase().includes(query.trim().toLowerCase());
-        return categoryMatch && queryMatch;
-      })
-      .sort((a, b) => Number(favoriteSet.has(b.id)) - Number(favoriteSet.has(a.id)) || a.name.localeCompare(b.name));
-  }, [query, filter, exercises, favoriteExerciseIds]);
-
-  const filterLabel = (item: Filter) => {
-    if (item === 'Favorites') return t('favorites');
-    if (item === 'All') return t('all');
-    if (item === 'Kettlebell' || item === 'Bodyweight') return item;
-    return categoryLabel(language, item);
-  };
-
+  const insets = useSafeAreaInsets();
+  const selectedIds = useMemo(() => new Set(plan.items.map(item => item.exerciseId)), [plan.items]);
+  const data = useMemo(() => exercises.filter(exercise =>
+    (equipment === 'all' || (exercise.equipment ?? 'kettlebell') === equipment) &&
+    (category === 'all' || exercise.category === category) &&
+    (!favoritesOnly || favoriteExerciseIds.includes(exercise.id)) &&
+    exercise.name.toLowerCase().includes(query.trim().toLowerCase())
+  ).sort((a, b) => Number(favoriteExerciseIds.includes(b.id)) - Number(favoriteExerciseIds.includes(a.id)) || a.name.localeCompare(b.name)), [exercises, equipment, category, favoritesOnly, favoriteExerciseIds, query]);
   return (
     <View style={styles.page}>
-      <View style={styles.topRow}>
-        <TextInput value={query} onChangeText={setQuery} placeholder={t('searchExercise')} placeholderTextColor={colors.muted} style={styles.search} autoCorrect={false}/>
-        <Pressable onPress={() => router.push('/custom-exercise')} style={styles.custom}><Text style={styles.customText}>+ {t('customExercise')}</Text></Pressable>
-      </View>
-
-      <FlatList
-        horizontal
-        data={filters}
-        keyExtractor={(x) => x}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-        style={styles.filterList}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => setFilter(item)}
-            style={[
-              styles.filter,
-              filter === item && styles.filterActive,
-              filter === 'Bodyweight' && item === 'Bodyweight' && styles.bodyweightFilterActive
-            ]}
-          >
-            <Text style={[
-              styles.filterText,
-              filter === item && styles.filterTextActive,
-              filter === 'Bodyweight' && item === 'Bodyweight' && styles.bodyweightFilterText
-            ]}>{filterLabel(item)}</Text>
-          </Pressable>
-        )}
-      />
-
-      <FlatList
-        data={data}
-        keyExtractor={(x) => x.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>{filter === 'Favorites' ? t('noFavorites') : t('noExercises')}</Text>
-            <Text style={styles.meta}>{t('favoriteHelp')}</Text>
-          </View>
-        }
-        ListFooterComponent={<Pressable onPress={() => router.back()} style={styles.done}><Text style={styles.doneText}>{t('doneAdding')}</Text></Pressable>}
+      <FlatList data={data} keyExtractor={item => item.id} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.list}
+        ListHeaderComponent={<View style={styles.header}>
+          <Text style={styles.heading}>Choose exercises</Text>
+          <UndoNotice/>
+          <Text style={styles.help}>Check to select. Tap an exercise for technique and combinations.</Text>
+          <Dropdown label="Equipment" value={equipment} options={[{ value: 'all', label: 'Kettlebell + Bodyweight' }, { value: 'kettlebell', label: 'Kettlebell', color: colors.accent }, { value: 'bodyweight', label: 'Bodyweight', color: colors.bodyweight }]} onChange={setEquipment}/>
+          <Dropdown label="Movement category" value={category} options={['all', 'Ballistic', 'Strength', 'Legs', 'Core'].map(value => ({ value, label: value === 'all' ? 'All categories' : value }))} onChange={setCategory}/>
+          <TextInput accessibilityLabel="Search exercises" value={query} onChangeText={setQuery} placeholder={t('searchExercise')} placeholderTextColor={colors.muted} style={styles.search} autoCorrect={false}/>
+          <View style={styles.tools}><Text style={styles.help}>Favorites only</Text><Switch accessibilityLabel="Favorites only" value={favoritesOnly} onValueChange={setFavoritesOnly} trackColor={{ true: colors.accentSoft, false: colors.border }}/></View>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/custom-exercise')} style={styles.custom}><Text style={styles.link}>+ {t('customExercise')}</Text></Pressable>
+          <Text style={styles.help}>{data.length} exercises · {selectedIds.size} selected across all equipment</Text>
+        </View>}
+        ListEmptyComponent={<View style={styles.empty}><Text style={styles.name}>No matching exercises</Text><Text style={styles.help}>Try another search or equipment filter.</Text></View>}
         renderItem={({ item }) => {
+          const selected = selectedIds.has(item.id);
+          const tone = item.equipment === 'bodyweight' ? colors.bodyweight : colors.accent;
+          const count = plan.items.filter(entry => entry.exerciseId === item.id).length;
           const favorite = favoriteExerciseIds.includes(item.id);
-          return (
-            <View style={[styles.row, item.equipment === 'bodyweight' && styles.bodyweightRow]}>
-              <Pressable onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
-                <ExerciseGlyph visual={item.visual} size={76} equipment={item.equipment ?? 'kettlebell'}/>
-              </Pressable>
-              <Pressable style={styles.center} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
-                <View style={styles.nameRow}>
-                  <Text style={styles.name}>{item.name}</Text>
-                  {item.custom ? <Text style={styles.customBadge}>{t('customBadge')}</Text> : null}
-                </View>
-                <Text style={styles.meta}>
-                  {item.equipment === 'bodyweight' ? 'Bodyweight' : 'Kettlebell'} · {categoryLabel(language, item.category)} · {difficultyLabel(language, item.difficulty ?? 'Intermediate')}
-                  {item.unilateral ? ' · L/R' : ''} · {item.defaultMode === 'reps' ? `${item.defaultValue} ${t('reps').toLowerCase()}` : `${item.defaultValue} ${t('sec')}`}
-                </Text>
-              </Pressable>
-              <View style={styles.actions}>
-                <Pressable accessibilityLabel={item.name} onPress={() => toggleExerciseFavorite(item.id)} style={styles.star}>
-                  <Text style={[styles.starText, favorite && { color: colors.warning }]}>{favorite ? '★' : '☆'}</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={item.name}
-                  onPress={() => {
-                    addExercise(item.id);
-                    setLastAdded(item.id);
-                    if (settings.haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  style={[styles.add, lastAdded === item.id && styles.added]}
-                >
-                  <Text style={styles.addText}>{lastAdded === item.id ? '✓' : '+'}</Text>
-                </Pressable>
-              </View>
-            </View>
-          );
-        }}
-      />
+          return <View style={[styles.row, selected && { borderColor: tone }]}>
+            <Pressable accessibilityRole="checkbox" accessibilityLabel={`${selected ? 'Remove' : 'Select'} ${item.name}${count > 1 ? `, all ${count} entries` : ''}`} accessibilityState={{ checked: selected }} onPress={() => { toggleExerciseSelection(item.id); if (settings.haptics) void Haptics.selectionAsync(); }} style={styles.checkTarget}>
+              <View style={[styles.checkbox, { borderColor: tone }, selected && { backgroundColor: tone }]}><Text style={styles.checkmark}>{selected ? '✓' : ''}</Text></View>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.name}: technique and combinations`} style={styles.details} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: item.id } })}>
+              <ExerciseGlyph exerciseId={item.id} visual={item.visual} size={52} equipment={item.equipment ?? 'kettlebell'}/>
+              <View style={styles.copy}><Text style={styles.name}>{item.name}</Text><Text style={[styles.kind, { color: tone }]}>{item.equipment === 'bodyweight' ? 'Bodyweight' : 'Kettlebell'}</Text><Text style={styles.meta}>{categoryLabel(language, item.category)} · {difficultyLabel(language, item.difficulty ?? 'Intermediate')}</Text>{count > 1 && <Text style={styles.meta}>{count} entries · uncheck removes all</Text>}<Text style={styles.meta}>Details ›</Text></View>
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${favorite ? 'Unfavorite' : 'Favorite'} ${item.name}`} accessibilityState={{ selected: favorite }} onPress={() => toggleExerciseFavorite(item.id)} style={styles.checkTarget}><Text style={[styles.star, favorite && { color: colors.warning }]}>{favorite ? '★' : '☆'}</Text></Pressable>
+          </View>;
+        }}/>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}><PrimaryButton label={`Done · ${selectedIds.size} selected`} onPress={() => router.back()}/></View>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.bg, paddingTop: 10 },
-  topRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-  search: { flex: 1, minHeight: 50, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 16, fontSize: 16 },
-  custom: { minHeight: 50, borderRadius: radius.md, paddingHorizontal: 12, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, justifyContent: 'center' },
-  customText: { color: colors.text, fontWeight: '800', fontSize: 12 },
-  filterList: { flexGrow: 0, marginTop: 12 },
-  filters: { paddingHorizontal: 16, gap: 8 },
-  filter: { minHeight: 40, borderRadius: 20, paddingHorizontal: 14, justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  filterActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  filterText: { color: colors.text, fontWeight: '800' },
-  filterTextActive: { color: colors.accentText },
-  bodyweightFilterActive: { backgroundColor: colors.bodyweight, borderColor: colors.bodyweight },
-  bodyweightFilterText: { color: colors.bodyweightText },
-  list: { padding: 16, gap: 10, paddingBottom: 40 },
-  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 12, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: 'transparent' },
-  bodyweightRow: { borderColor: colors.bodyweight, backgroundColor: colors.bodyweightSoft },
-  center: { flex: 1, minWidth: 0 },
-  nameRow: { flexDirection: 'row', gap: 7, alignItems: 'center', flexWrap: 'wrap' },
-  name: { color: colors.text, fontWeight: '900', fontSize: 16 },
-  customBadge: { color: colors.accent, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  meta: { color: colors.muted, marginTop: 4, fontSize: 11, lineHeight: 17 },
-  actions: { alignItems: 'center', gap: 5 },
-  star: { width: 40, height: 32, alignItems: 'center', justifyContent: 'center' },
-  starText: { color: colors.muted, fontSize: 22 },
-  add: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
-  added: { backgroundColor: colors.accentSoft },
-  addText: { color: colors.accentText, fontSize: 26, fontWeight: '800' },
-  done: { minHeight: 54, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, marginTop: 8 },
-  doneText: { color: colors.text, fontWeight: '800' },
-  empty: { padding: 22, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.lg },
-  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '900' }
+  page: { flex: 1, backgroundColor: colors.bg }, list: { padding: 16, gap: 10 }, header: { gap: 12, marginBottom: 8 }, heading: { color: colors.text, fontSize: 24, fontWeight: '900' }, help: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  search: { minHeight: 50, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 14, fontSize: 16 }, tools: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, custom: { minHeight: 44, justifyContent: 'center' }, link: { color: colors.text, fontWeight: '800' },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, borderRadius: radius.lg, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }, checkTarget: { width: 44, minHeight: 48, justifyContent: 'center', alignItems: 'center' }, checkbox: { width: 25, height: 25, borderRadius: 6, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' }, checkmark: { color: colors.bg, fontWeight: '900', fontSize: 18 }, details: { flex: 1, minWidth: 0, flexDirection: 'row', gap: 9, alignItems: 'center', minHeight: 64 }, copy: { flex: 1, minWidth: 0 }, name: { color: colors.text, fontWeight: '800', fontSize: 15 }, kind: { fontSize: 11, marginTop: 4 }, meta: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, star: { color: colors.muted, fontSize: 23 }, empty: { padding: 20, gap: 10 }, footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.bg }
 });

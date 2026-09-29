@@ -20,7 +20,7 @@ export const BASE_EXERCISES: ExerciseDefinition[] = [
     technique: ['Drive from the hips.', 'Keep the bell close as it rises.', 'Punch the hand through softly at the top.', 'Finish with ribs down and elbow locked overhead.']
   },
   {
-    id: 'high-pull', name: 'High Pull', category: 'Ballistic', defaultMode: 'reps', defaultValue: 8, unilateral: true, visual: 'clean',
+    id: 'high-pull', name: 'High Pull', category: 'Ballistic', defaultMode: 'reps', defaultValue: 8, unilateral: true, visual: 'high-pull',
     difficulty: 'Intermediate', focus: ['Hips', 'Upper back', 'Conditioning'],
     description: 'A swing variation that adds a fast elbow pull while preserving hip-driven power.',
     technique: ['Start with a strong swing.', 'Pull the elbow back rather than lifting straight up.', 'Keep the wrist neutral.', 'Reconnect smoothly into the backswing.']

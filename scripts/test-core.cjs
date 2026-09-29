@@ -1,0 +1,86 @@
+const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('node:assert/strict');
+const ts = require('typescript');
+const root = path.resolve(__dirname, '..');
+const memory = new Map(); let failWrites = false, failReads = false;
+const storage = { getItem: async key => { if(failReads) throw Error('disk read'); return memory.get(key) ?? null; }, setItem: async (key, value) => { if(failWrites) throw Error('disk full'); await new Promise(r=>setTimeout(r, key==='order'&&value==='1'?8:0)); memory.set(key,value); }, removeItem: async key => { if(failWrites) throw Error('disk full'); memory.delete(key); } };
+const cache = new Map();
+function load(file) {
+  file = path.resolve(root,file); if (cache.has(file)) return cache.get(file);
+  const exports = {}; cache.set(file,exports);
+  const code = ts.transpileModule(fs.readFileSync(file,'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  vm.runInNewContext(code,{ exports, require: id => id==='@react-native-async-storage/async-storage'?{__esModule:true,default:storage}:load(path.resolve(path.dirname(file),id)+'.ts'), setTimeout, Date, Math, Map, Set, JSON });
+  return exports;
+}
+const { BASE_EXERCISES } = load('src/data/exercises.ts');
+const { createSession, tickSession, actOnSession, restoreSession, remainingSeconds, sessionSummary, validSession, planFingerprint } = load('src/workout/session.ts');
+const { readStored, writeStored } = load('src/storage/store.ts');
+const { validPlan, validExercises, validHistory } = load('src/storage/validation.ts');
+const plan = { name:'Test',weightKg:16,rounds:2,restSeconds:5,items:[{key:'a',exerciseId:'plank',mode:'time',value:10,side:'alternate'}] };
+const start = (p=plan,manual=false) => createSession(p,BASE_EXERCISES,manual,1000);
+let s = tickSession(start(),29000); // delayed callback crosses countdown, work, rest and work
+assert.equal(s.phase,'done'); let result=sessionSummary(s);assert.equal(result.workSeconds,20);assert.equal(result.restSeconds,5);assert.equal(result.bodyweight.totalSeconds,20);assert.equal(result.rounds,2);assert.equal(s.status,'completed');
+s=actOnSession(start(),'pause',8500);assert.equal(remainingSeconds(s),6);s=tickSession(s,108500);assert.equal(remainingSeconds(s),6);assert.equal(sessionSummary(s).workSeconds,5);s=actOnSession(s,'resume',108500);s=tickSession(s,114000);assert.equal(s.phase,'rest');assert.equal(sessionSummary(s).pauseSeconds,100);
+s=tickSession(start(plan,true),19000);assert.equal(s.waiting,true);s=tickSession(s,29000);assert.equal(s.round,1);assert.equal(sessionSummary(s).pauseSeconds,10);s=actOnSession(s,'continue',29000);assert.equal(s.round,2);assert.equal(s.phase,'exercise');
+s=actOnSession(tickSession(start({...plan,rounds:1}),4000),'next',6500);assert.equal(s.phase,'done');assert.equal(s.status,'partial');assert.equal(sessionSummary(s).bodyweight.totalSeconds,2);assert.equal(sessionSummary(s).rounds,0);
+const reps={...plan,rounds:1,items:[{key:'r',exerciseId:'swing',mode:'reps',value:12,side:'alternate'},{key:'p',exerciseId:'push-up',mode:'reps',value:8,side:'alternate'}]};
+s=actOnSession(tickSession(start(reps),4000),'next',14000);s=actOnSession(s,'skip',18000);result=sessionSummary(s);assert.equal(result.totalReps,12);assert.equal(result.volumeKg,192);assert.equal(s.status,'partial');
+s=actOnSession(start(reps),'finish-partial',14000);assert.equal(sessionSummary(s).totalReps,0);assert.equal(sessionSummary(s).workSeconds,10);
+s=actOnSession(tickSession(start(reps),4000),'next',14000);s=actOnSession(s,'back',15000);assert.equal(s.results.length,0);assert.equal(s.index,0);s=actOnSession(s,'next',24000);assert.equal(sessionSummary(s).totalReps,12);
+s=restoreSession(tickSession(start(),6500),1e8);assert.equal(s.paused,true);assert.equal(remainingSeconds(s),8);assert.equal(validSession(JSON.parse(JSON.stringify(s))),true);s=tickSession(s,1e8+5000);assert.equal(remainingSeconds(s),8);
+assert.equal(validSession({...s,index:999}),false);assert.equal(validPlan({...plan,rounds:NaN}),false);assert.equal(validExercises(BASE_EXERCISES),true);assert.equal(validHistory([{id:'bad'}]),false);
+assert.equal(planFingerprint(plan,BASE_EXERCISES,false),planFingerprint({...plan,name:'Renamed',items:plan.items.map(i=>({...i,key:'new-key'}))},BASE_EXERCISES,false));
+for(const changed of [{...plan,weightKg:24},{...plan,restSeconds:30},{...plan,items:[{...plan.items[0],value:20}]}]) assert.notEqual(planFingerprint(plan,BASE_EXERCISES,false),planFingerprint(changed,BASE_EXERCISES,false));
+// Real epoch timestamps must survive checkpoint validation.
+assert.equal(validSession(createSession(plan, BASE_EXERCISES, false, Date.now())), true);
+const corrupt = tickSession(start(), 29000);
+assert.equal(validSession({...corrupt, fingerprint: 'wrong'}), false);
+assert.equal(validSession({...corrupt, results: [{...corrupt.results[0],seconds:999}]}), false);
+const { quickStartPlan } = load('src/workout/quickStart.ts');
+for (const equipment of ['kettlebell','bodyweight']) for (const minutes of [10,15,20]) for (const level of ['Beginner','Intermediate']) for (const goal of ['Strength','Conditioning']) {
+  const quick = quickStartPlan(equipment,minutes,level,goal,16,BASE_EXERCISES);
+  assert.equal(validPlan(quick),true);
+  const run = createSession(quick,BASE_EXERCISES,false,Date.now());
+  assert.equal(validSession(run),true);
+  assert.ok(run.steps.every(step => (step.exercise.equipment ?? 'kettlebell') === equipment));
+}
+// Every phase/transition must remain recoverable after serialization.
+for (const manual of [false,true]) {
+  let run = createSession(plan,BASE_EXERCISES,manual,Date.now());
+  for(let i=0;i<100;i++) {
+    run = tickSession(run,run.lastAt+500);
+    assert.equal(validSession(JSON.parse(JSON.stringify(run))),true);
+    if(run.waiting) run=actOnSession(run,'continue',run.lastAt);
+  }
+}
+const {compareWork}=load('src/workout/comparison.ts');
+const rested=tickSession(start(),29000);
+let skippedRest=tickSession(start(),14000);skippedRest=actOnSession(skippedRest,'continue',14000);skippedRest=tickSession(skippedRest,24000);
+const prior={id:'prior',sessionId:'prior',status:'completed',timeBasis:'monotonic-v2',fingerprint:rested.fingerprint,workSeconds:20,restSeconds:5,pauseSeconds:0};
+assert.equal(compareWork(skippedRest,[prior]).workDelta,0);
+assert.equal(compareWork(skippedRest,[{...prior,timeBasis:'active-v1'}]),null);
+// Focus and experience must change the actual prescription, not just its title.
+const prescription = p => JSON.stringify({rest:p.restSeconds,items:p.items.map(({exerciseId,mode,value,side})=>({exerciseId,mode,value,side}))});
+for(const equipment of ['kettlebell','bodyweight']) {
+  for(const level of ['Beginner','Intermediate']) assert.notEqual(prescription(quickStartPlan(equipment,10,level,'Strength',16,BASE_EXERCISES)),prescription(quickStartPlan(equipment,10,level,'Conditioning',16,BASE_EXERCISES)));
+  for(const goal of ['Strength','Conditioning']) assert.notEqual(prescription(quickStartPlan(equipment,10,'Beginner',goal,16,BASE_EXERCISES)),prescription(quickStartPlan(equipment,10,'Intermediate',goal,16,BASE_EXERCISES)));
+}
+const {getMotion,samplePose}=load('src/animation/exercisePoses.ts');
+for(const e of BASE_EXERCISES) {
+  const motion=getMotion(e.id,e.visual,e.equipment??'kettlebell');
+  for(let i=0;i<=100;i++) {
+    const pose=samplePose(motion,i/100);
+    for(const side of ['left','right']) {
+      const a=pose[side+'Elbow'],b=pose[side+'Hand'];
+      assert.ok(Math.abs(Math.hypot(a.x-b.x,a.y-b.y)-15.5)<1e-6, e.id+' forearm collapse');
+      assert.ok(a.y<=90.0001,e.id+' elbow below floor');
+    }
+  }
+}
+(async()=>{
+  await Promise.all([writeStored('order',1),writeStored('order',2)]);assert.equal(memory.get('order'),'2');
+  memory.set('broken','{bad json');await assert.rejects(readStored('broken',validPlan));await assert.rejects(writeStored('broken',plan));assert.equal(memory.get('broken'),'{bad json');
+  failReads=true;await assert.rejects(readStored('unread',validPlan));failReads=false;await assert.rejects(writeStored('unread',plan));
+  await readStored('unread',validPlan);await writeStored('unread',plan);assert.equal((await readStored('unread',validPlan)).rounds,2);
+  failWrites=true;await assert.rejects(writeStored('order',3));failWrites=false;await writeStored('order',4);assert.equal(memory.get('order'),'4');
+  console.log('PASS: delayed clocks, pauses, manual rest, partial/skip results, backtracking, recovery, fingerprints, validators, ordered writes and failure preservation.');
+})().catch(e=>{console.error(e);process.exitCode=1});

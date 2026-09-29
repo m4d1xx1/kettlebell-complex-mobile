@@ -1,14 +1,16 @@
 import React, { forwardRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { colors, radius } from '../theme';
 import { BodyweightSummaryItem } from '../workout/steps';
 import { formatDuration } from '../utils/format';
 import { BrandMark } from './BrandMark';
 
 type Props = {
+  completedAt?: string;
   planName: string;
   completedDuration: number;
   rounds: number;
+  partial?: boolean;
   totalReps: number;
   weightKg: number;
   volumeKg: number;
@@ -19,9 +21,11 @@ type Props = {
 };
 
 export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCard({
+  completedAt,
   planName,
   completedDuration,
   rounds,
+  partial = false,
   totalReps,
   weightKg,
   volumeKg,
@@ -30,8 +34,12 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
   bodyweightSeconds,
   bodyweightItems
 }, ref) {
+  const { width } = useWindowDimensions();
+  const factor = Math.min(1, Math.max(0.5, (width - 28) / 400));
+  const scaled = (style: Record<string, unknown>) => Object.fromEntries(Object.entries(style).map(([key,value]) => [key, typeof value === 'number' && /^(fontSize|lineHeight|letterSpacing|padding.*|margin.*|gap|borderRadius|width|height)$/.test(key) ? value * factor : value]));
+  const styles = Object.fromEntries(Object.entries(baseStyles).map(([key,style]) => [key,scaled(style)])) as typeof baseStyles;
   const hasBodyweight = bodyweightItems.length > 0;
-  const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const date = new Date(completedAt ?? Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
     <View ref={ref} collapsable={false} style={styles.card}>
@@ -41,10 +49,10 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
       </View>
 
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>WORKOUT COMPLETE</Text>
+        <Text style={styles.eyebrow}>{partial ? 'PARTIAL WORKOUT' : 'WORKOUT COMPLETE'}</Text>
         <Text style={styles.planName} numberOfLines={2}>{planName}</Text>
         <Text style={styles.duration}>{formatDuration(completedDuration)}</Text>
-        <Text style={styles.durationLabel}>TOTAL TIME</Text>
+        <Text style={styles.durationLabel}>WORK + REST · PAUSES EXCLUDED</Text>
       </View>
 
       <View style={styles.stats}>
@@ -59,7 +67,7 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
       {hasBodyweight ? (
         <View style={styles.bodyweightBlock}>
           <Text style={styles.bodyweightTitle}>BODYWEIGHT WORK</Text>
-          {bodyweightItems.slice(0, 6).map((item) => (
+          {bodyweightItems.slice(0, 4).map((item) => (
             <View key={item.exerciseId} style={styles.bodyweightRow}>
               <Text style={styles.bodyweightName} numberOfLines={1}>{item.name}</Text>
               <Text style={styles.bodyweightValue}>
@@ -69,6 +77,7 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
               </Text>
             </View>
           ))}
+          {bodyweightItems.length > 4 && <Text style={styles.bodyweightTitle}>+ {bodyweightItems.length - 4} more exercises · included in totals</Text>}
         </View>
       ) : (
         <View style={styles.statement}>
@@ -87,6 +96,9 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
 });
 
 function ShareStat({ label, value, bodyweight = false }: { label: string; value: string; bodyweight?: boolean }) {
+  const { width } = useWindowDimensions();
+  const factor = Math.min(1, Math.max(0.5, (width - 28) / 400));
+  const styles = { ...baseStyles, stat: { ...baseStyles.stat, paddingVertical:10*factor, paddingHorizontal:10*factor }, statLabel: { ...baseStyles.statLabel, fontSize:8*factor }, statValue: { ...baseStyles.statValue, fontSize:18*factor, marginTop:3*factor } };
   return (
     <View style={[styles.stat, bodyweight && styles.statBodyweight]}>
       <Text style={[styles.statLabel, bodyweight && styles.bodyweightAccent]}>{label}</Text>
@@ -95,7 +107,7 @@ function ShareStat({ label, value, bodyweight = false }: { label: string; value:
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles = StyleSheet.create({
   card: {
     width: '100%',
     aspectRatio: 9 / 16,

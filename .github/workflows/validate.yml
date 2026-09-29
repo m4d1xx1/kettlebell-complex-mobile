@@ -24,3 +24,7 @@ jobs:
         run: npx expo-doctor@latest
       - name: TypeScript
         run: npm run typecheck
+      - name: Workout regression tests
+        run: npm run test:core
+      - name: Storage and lifecycle integration tests
+        run: npm run test:integration

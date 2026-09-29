@@ -1,8 +1,12 @@
+import { QuickStart } from '../src/components/QuickStart';
+import { ResumeWorkoutNotice } from '../src/components/ResumeWorkoutNotice';
+import { UndoNotice } from '../src/components/UndoNotice';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
+import { Dropdown } from '../src/components/Dropdown';
 import { BrandMark } from '../src/components/BrandMark';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { NumberStepper } from '../src/components/NumberStepper';
@@ -57,15 +61,15 @@ export default function BuilderScreen() {
         <View style={[styles.item, exercise.equipment === 'bodyweight' && styles.bodyweightItem, isActive && styles.itemActive]}>
           <Pressable onLongPress={drag} delayLongPress={120} accessibilityLabel={exercise.name} style={styles.dragArea}>
             <Text style={styles.drag}>≡</Text>
-            <ExerciseGlyph visual={exercise.visual} size={72} equipment={exercise.equipment ?? 'kettlebell'}/>
+            <ExerciseGlyph exerciseId={exercise.id} visual={exercise.visual} size={72} equipment={exercise.equipment ?? 'kettlebell'}/>
           </Pressable>
 
           <View style={styles.itemCenter}>
             <View style={styles.itemTitleRow}>
-              <View style={styles.itemTitleText}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`View ${exercise.name}`} style={styles.itemTitleText} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: exercise.id } })}>
                 <Text style={styles.itemName}>{index + 1}. {exercise.name}</Text>
                 <Text style={[styles.itemCategory, exercise.equipment === 'bodyweight' && styles.bodyweightText]}>{exercise.equipment === 'bodyweight' ? 'Bodyweight · ' : ''}{categoryLabel(language, exercise.category)}</Text>
-              </View>
+              </Pressable>
               <Pressable accessibilityLabel={t('delete')} onPress={() => removeItem(item.key)} style={styles.deleteButton}>
                 <Text style={styles.deleteText}>×</Text>
               </Pressable>
@@ -117,20 +121,11 @@ export default function BuilderScreen() {
             </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetScroller} contentContainerStyle={styles.presetRow}>
-            {PRESETS.map((preset) => (
-              <Pressable
-                key={preset.id}
-                style={[styles.preset, preset.id.startsWith('bodyweight-') && styles.bodyweightPreset]}
-                onPress={() => loadPreset(preset.id)}
-              >
-                <Text style={[styles.presetText, preset.id.startsWith('bodyweight-') && styles.bodyweightPresetText]}>{preset.label}</Text>
-              </Pressable>
-            ))}
-            <Pressable style={styles.preset} onPress={() => router.push('/saved')}>
-              <Text style={styles.presetText}>{t('saved')}</Text>
-            </Pressable>
-          </ScrollView>
+          <ResumeWorkoutNotice/>
+          <UndoNotice/>
+          <QuickStart/>
+          <Dropdown label="Workout templates" placeholder="Choose a template" options={PRESETS.map(preset => ({ value: preset.id, label: preset.name, color: preset.id.startsWith('bodyweight-') ? colors.bodyweight : colors.accent }))} onChange={id => { const preset = PRESETS.find(item => item.id === id); if (preset) loadPreset(preset.id); }}/>
+          <Pressable accessibilityRole="button" style={styles.preset} onPress={() => router.push('/saved')}><Text style={styles.presetText}>{t('saved')}</Text></Pressable>
 
           <View style={styles.sectionHeader}>
             <View>
@@ -179,8 +174,8 @@ export default function BuilderScreen() {
           <Pressable
             disabled={!plan.items.length}
             onPress={async () => {
-              await saveCurrent();
-              if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              const didSave = await saveCurrent();
+              if (didSave && settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             }}
             style={styles.save}
           >

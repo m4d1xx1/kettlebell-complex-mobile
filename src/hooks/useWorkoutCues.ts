@@ -78,5 +78,5 @@ export function useWorkoutCues(settings: AppSettings) {
     if (settings.voiceCues) speak(settings.voiceLanguage === 'sv-SE' ? 'Passet är klart.' : 'Workout complete.');
   };
 
-  return { cueCountdown, announceStep, announceRest, announceComplete };
+  return { cueCountdown, announceStep, announceRest, announceComplete, stop: () => { Speech.stop(); tick.pause(); go.pause(); complete.pause(); } };
 }

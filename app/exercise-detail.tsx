@@ -1,6 +1,9 @@
+import { UndoNotice } from '../src/components/UndoNotice';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
+import { getExercisePairings } from '../src/data/exercisePairings';
+import { getMotion } from '../src/animation/exercisePoses';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { localizedExerciseCopy } from '../src/data/exerciseCopy';
@@ -9,7 +12,7 @@ import { colors, radius } from '../src/theme';
 
 export default function ExerciseDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
-  const { exercises, addExercise, favoriteExerciseIds, toggleExerciseFavorite } = useWorkout();
+  const { plan, exercises, toggleExerciseSelection, favoriteExerciseIds, toggleExerciseFavorite } = useWorkout();
   const { t, language } = useI18n();
   const exercise = exercises.find((x) => x.id === params.id);
 
@@ -23,12 +26,22 @@ export default function ExerciseDetailScreen() {
   }
 
   const favorite = favoriteExerciseIds.includes(exercise.id);
+  const selectedIds = new Set(plan.items.map(item => item.exerciseId));
+  const pairings = getExercisePairings(exercise, exercises, plan);
   const local = localizedExerciseCopy(exercise, language);
+  const highlightedMuscles = getMotion(exercise.id, exercise.visual, exercise.equipment ?? 'kettlebell').muscles;
 
   return (
     <ScrollView contentContainerStyle={styles.page}>
+      <UndoNotice/>
       <View style={styles.hero}>
-        <ExerciseGlyph visual={exercise.visual} size={190} animated hero equipment={exercise.equipment ?? 'kettlebell'}/>
+        <ExerciseGlyph exerciseId={exercise.id} visual={exercise.visual} size={240} animated hero equipment={exercise.equipment ?? 'kettlebell'}/>
+        {highlightedMuscles.length > 0 && (
+          <View style={styles.muscleLegend}>
+            <Text style={styles.muscleLegendTitle}>RED · MUSCLE FOCUS</Text>
+            <Text style={styles.muscleLegendText}>{highlightedMuscles.join(' · ')}</Text>
+          </View>
+        )}
         <View style={styles.heroText}>
           <View style={styles.badges}>
             <Text style={styles.badge}>{categoryLabel(language, exercise.category).toUpperCase()}</Text>
@@ -65,7 +78,25 @@ export default function ExerciseDetailScreen() {
         </View>
       </View>
 
-      <PrimaryButton label={t('addToComplex')} onPress={() => { addExercise(exercise.id); router.back(); }}/>
+      {pairings.length > 0 && <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Pairs well with</Text>
+        <Text style={styles.description}>Ideas for building a varied workout. Tap to explore or check to add.</Text>
+        {pairings.map(({ exercise: partner, reason }) => {
+          const selected = selectedIds.has(partner.id);
+          const tone = partner.equipment === 'bodyweight' ? colors.bodyweight : colors.accent;
+          return <View key={partner.id} style={styles.pairing}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`View ${partner.name}`} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: partner.id } })} style={styles.pairingLink}>
+              <Text style={[styles.pairingName, { color: tone }]}>{partner.name} ›</Text>
+              <Text style={styles.pairingReason}>{reason}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="checkbox" accessibilityLabel={`${selected ? 'Remove' : 'Select'} ${partner.name}`} accessibilityState={{ checked: selected }} onPress={() => toggleExerciseSelection(partner.id)} style={styles.pairingCheck}>
+              <View style={[styles.checkBox, { borderColor: tone }, selected && { backgroundColor: tone }]}><Text style={styles.checkText}>{selected ? '✓' : ''}</Text></View>
+            </Pressable>
+          </View>;
+        })}
+      </View>}
+      <PrimaryButton label={selectedIds.has(exercise.id) ? 'Remove from workout' : 'Add to workout'} onPress={() => toggleExerciseSelection(exercise.id)}/>
+      <Text style={styles.pairingReason}>{selectedIds.has(exercise.id) ? 'Selected in your workout. Changes are saved automatically.' : 'Not selected in your workout.'}</Text>
       <Pressable style={styles.favorite} onPress={() => toggleExerciseFavorite(exercise.id)}>
         <Text style={styles.favoriteText}>{favorite ? t('removeFavorite') : t('addFavorite')}</Text>
       </Pressable>
@@ -82,6 +113,9 @@ const styles = StyleSheet.create({
   page: { padding: 18, paddingBottom: 40, backgroundColor: colors.bg, gap: 20 },
   missing: { flex: 1, padding: 20, justifyContent: 'center', gap: 20, backgroundColor: colors.bg },
   hero: { alignItems: 'center', gap: 16 },
+  muscleLegend: { alignItems: 'center', gap: 4, paddingHorizontal: 12 },
+  muscleLegendTitle: { color: '#E96B73', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  muscleLegendText: { color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
   heroText: { alignItems: 'center', gap: 7 },
   badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
   badge: { color: colors.accent, backgroundColor: colors.accentSoft, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 12, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, overflow: 'hidden' },
@@ -102,5 +136,12 @@ const styles = StyleSheet.create({
   cue: { flex: 1, color: colors.text, fontSize: 13, lineHeight: 20 },
   favorite: { minHeight: 50, alignItems: 'center', justifyContent: 'center' },
   favoriteText: { color: colors.text, fontWeight: '800' },
+  pairing: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.md, padding: 14, gap: 10 },
+  pairingLink: { flex: 1, minHeight: 48, justifyContent: 'center' },
+  pairingName: { fontSize: 15, fontWeight: '800' },
+  pairingReason: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  pairingCheck: { width: 48, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  checkBox: { width: 26, height: 26, borderWidth: 1.5, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  checkText: { color: colors.bg, fontSize: 18, fontWeight: '900' },
   safety: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' }
 });

@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { useKeepAwake } from 'expo-keep-awake';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
@@ -12,256 +12,110 @@ import { PrimaryButton } from '../src/components/PrimaryButton';
 import { WorkoutShareCard } from '../src/components/WorkoutShareCard';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useWorkoutCues } from '../src/hooks/useWorkoutCues';
+import { useWorkoutSession } from '../src/hooks/useWorkoutSession';
 import { useI18n } from '../src/i18n';
-import { WorkoutHistoryEntry } from '../src/types';
 import { colors, radius } from '../src/theme';
 import { buildRoundSteps, calculateBodyweightSummary, calculatePlanStats, WorkoutStep } from '../src/workout/steps';
+import { compareWork } from '../src/workout/comparison';
+import { remainingSeconds, sessionSummary } from '../src/workout/session';
 import { formatDuration } from '../src/utils/format';
-
-type Phase = 'ready' | 'countdown' | 'exercise' | 'rest' | 'done';
 
 export default function WorkoutScreen() {
   useKeepAwake();
-
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const heroSize = Math.min(width * 0.94, height * 0.50, 430);
-  const readyHeroSize = Math.min(width * 0.72, 290);
-
-  const { plan, exercises, completeWorkout, settings, history } = useWorkout();
+  const heroSize = Math.max(100, Math.min(width * 0.8, (height - insets.top - insets.bottom - 390) * 0.85, 320));
+  const readyHeroSize = Math.min(width * 0.65, height * 0.3, 270);
+  const { plan: draft, exercises, completeWorkout, settings, history, hydrated } = useWorkout();
   const { t } = useI18n();
   const cues = useWorkoutCues(settings);
-  const roundSteps = useMemo(() => buildRoundSteps(plan, exercises), [plan, exercises]);
-  const stats = useMemo(() => calculatePlanStats(plan, exercises), [plan, exercises]);
-  const bodyweightSummary = useMemo(() => calculateBodyweightSummary(plan, exercises), [plan, exercises]);
-  const hasKettlebell = useMemo(
-    () => plan.items.some((item) => exercises.find((exercise) => exercise.id === item.exerciseId)?.equipment !== 'bodyweight'),
-    [plan.items, exercises]
-  );
-
-  const hasBodyweight = bodyweightSummary.items.length > 0;
-  const bodyweightOnly = hasBodyweight && !hasKettlebell;
-
-  const [round, setRound] = useState(1);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>('ready');
-  const [remaining, setRemaining] = useState(3);
-  const [paused, setPaused] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [completedDuration, setCompletedDuration] = useState(0);
-
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startedAt = useRef<number | null>(null);
-  const logged = useRef(false);
-  const previousRef = useRef<WorkoutHistoryEntry | undefined>(undefined);
-  const shareCardRef = useRef<View | null>(null);
-
+  const engine = useWorkoutSession(hydrated);
+  const { session } = engine;
+  const plan = session?.plan ?? draft;
+  const roundSteps = useMemo(() => session?.steps ?? buildRoundSteps(draft, exercises), [session?.steps, draft, exercises]);
+  const actual = session ? sessionSummary(session) : null;
+  const stats = actual ?? calculatePlanStats(plan, exercises);
+  const bodyweightSummary = actual?.bodyweight ?? calculateBodyweightSummary(plan, exercises);
+  const hasKettlebell = roundSteps.some(item => item.exercise.equipment !== 'bodyweight');
+  const bodyweightOnly = roundSteps.length > 0 && !hasKettlebell;
+  const round = session?.round ?? 1;
+  const stepIndex = session?.index ?? 0;
+  const phase = session?.phase ?? 'ready';
+  const remaining = session ? remainingSeconds(session) : 3;
+  const paused = session?.paused ?? false;
+  const elapsed = actual?.durationSeconds ?? 0;
+  const completedDuration = elapsed;
   const step = roundSteps[stepIndex];
   const isBodyweightStep = step?.exercise.equipment === 'bodyweight';
-  const totalSteps = Math.max(1, roundSteps.length * plan.rounds);
-  const completed = Math.min(totalSteps, (round - 1) * roundSteps.length + stepIndex);
-  const progress = phase === 'done' ? 1 : completed / totalSteps;
+  const progress = (session?.results.filter(r => r.completed).length ?? 0) / Math.max(1, roundSteps.length * plan.rounds);
+  const shareCardRef = useRef<View | null>(null);
+  const logging = useRef<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [pendingSave, setPendingSave] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saved = savedId === session?.id;
+  const comparisonResult = session ? compareWork(session, history) : null;
+  const previous = comparisonResult?.previous;
 
-  const clearMainTimer = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const clearElapsed = () => {
-    if (elapsedRef.current) {
-      clearInterval(elapsedRef.current);
-      elapsedRef.current = null;
-    }
-  };
-
-  const hapticImpact = (style: Haptics.ImpactFeedbackStyle) => {
-    if (settings.haptics) Haptics.impactAsync(style);
-  };
-
-  const hapticSuccess = () => {
-    if (settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const sideLabel = (candidate?: WorkoutStep) => {
-    if (!candidate || candidate.side === 'none') return '';
-    if (candidate.side === 'left') return t('left').toUpperCase();
-    if (candidate.side === 'right') return t('right').toUpperCase();
-    return t('alternate').toUpperCase();
-  };
-
-  useEffect(() => () => {
-    clearMainTimer();
-    clearElapsed();
-  }, []);
-
+  const hapticSuccess = () => { if (settings.haptics) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined); };
+  const sideLabel = (candidate?: WorkoutStep) => !candidate || candidate.side === 'none' ? '' : candidate.side === 'left' ? t('left').toUpperCase() : candidate.side === 'right' ? t('right').toUpperCase() : t('alternate').toUpperCase();
+  const previousCount = useRef(-1);
   useEffect(() => {
-    const timedPhase =
-      phase === 'countdown' ||
-      phase === 'rest' ||
-      (phase === 'exercise' && step?.mode === 'time');
-
-    if (!timedPhase || paused || remaining <= 0) {
-      clearMainTimer();
-      return;
-    }
-
-    clearMainTimer();
-    timerRef.current = setTimeout(() => {
-      if (remaining > 1) {
-        const next = remaining - 1;
-        setRemaining(next);
-        if (next <= 3) cues.cueCountdown(next);
-        return;
-      }
-
-      setRemaining(0);
-      cues.cueCountdown(0);
-
-      if (phase === 'countdown') {
-        hapticImpact(Haptics.ImpactFeedbackStyle.Heavy);
-        enterStep(0, 1);
-      } else if (phase === 'rest') {
-        hapticSuccess();
-        if (settings.manualContinueAfterRest) {
-          setRemaining(0);
-          setPaused(false);
-        } else {
-          enterStep(0, round + 1);
-        }
-      } else if (phase === 'exercise' && step?.mode === 'time') {
-        hapticSuccess();
-        advance();
-      }
-    }, 1000);
-
-    return clearMainTimer;
-  }, [phase, paused, remaining, step?.stepKey, round, settings.manualContinueAfterRest]);
-
+    if (paused || phase === 'ready' || phase === 'done') { cues.stop(); previousCount.current = -1; return; }
+    if (remaining > 0 && remaining <= 3 && previousCount.current !== remaining) cues.cueCountdown(remaining);
+    previousCount.current = remaining;
+  }, [remaining, paused, phase]);
   useEffect(() => {
+    if (paused) return;
     if (phase === 'exercise' && step) cues.announceStep(step);
-  }, [phase, step?.stepKey]);
-
-  useEffect(() => {
-    if (phase === 'done' && !logged.current) {
-      logged.current = true;
-      clearElapsed();
-      cues.announceComplete();
-      completeWorkout({
-        planName: plan.name,
-        durationSeconds: completedDuration,
-        weightKg: plan.weightKg,
-        rounds: plan.rounds,
-        exerciseCount: plan.items.length,
-        totalReps: stats.totalReps,
-        volumeKg: stats.volumeKg,
-        plan: { ...plan, items: plan.items.map((x) => ({ ...x })) }
-      });
-    }
-  }, [phase, completedDuration]);
-
-  if (!step || !roundSteps.length) {
-    return (
-      <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
-        <Text style={styles.doneTitle}>{t('noWorkoutLoaded')}</Text>
-        <PrimaryButton label={t('backBuilder')} onPress={() => router.replace('/')}/>
-      </View>
-    );
+    if (phase === 'rest') cues.announceRest(plan.restSeconds, roundSteps[0]);
+    if (phase === 'done') { cues.announceComplete(); hapticSuccess(); }
+  }, [phase, stepIndex, round, paused]);
+  async function saveResult() {
+    if (!session || session.phase !== 'done' || logging.current === session.id || saved) return;
+    logging.current = session.id; setSaveError(null);
+    const result = sessionSummary(session);
+    try {
+      const destination = await completeWorkout({ sessionId: session.id, status: session.status, timeBasis: 'monotonic-v2', fingerprint: session.fingerprint, completedAt: session.finishedAt,
+        results: session.results.map(r => { const step = session.steps[r.index]; return { ...r, exerciseId: step.exercise.id, name: step.exercise.name, equipment: step.exercise.equipment ?? 'kettlebell', side: step.side, mode: step.mode, target: step.value }; }),
+        planName: plan.name, durationSeconds: result.durationSeconds, weightKg: hasKettlebell ? plan.weightKg : 0, rounds: result.rounds,
+        exerciseCount: new Set(session.results.filter(r => r.reps > 0 || r.seconds > 0 || r.completed).map(r => session.steps[r.index].exercise.id)).size,
+        totalReps: result.totalReps, volumeKg: result.volumeKg, plan, workSeconds: result.workSeconds, restSeconds: result.restSeconds,
+        pauseSeconds: result.pauseSeconds, wallSeconds: result.wallSeconds });
+      await engine.acknowledge(); setPendingSave(destination === 'pending'); setSavedId(session.id);
+    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Could not save. Keep this screen open and retry.'); }
+    finally { logging.current = null; }
   }
-
-  function startWorkout() {
-    previousRef.current = history.find((x) =>
-      x.planName === plan.name &&
-      x.rounds === plan.rounds &&
-      x.exerciseCount === plan.items.length
-    );
-    logged.current = false;
-    startedAt.current = Date.now();
-    setCompletedDuration(0);
-    setElapsed(0);
-    clearElapsed();
-    elapsedRef.current = setInterval(() => setElapsed((x) => x + 1), 1000);
-    setRound(1);
-    setStepIndex(0);
-    setPaused(false);
-    setRemaining(3);
-    setPhase('countdown');
-    cues.cueCountdown(3);
+  useEffect(() => { if (phase === 'done') void saveResult(); }, [phase, session?.id]);
+  async function startWorkout() {
+    try { await engine.start(draft, exercises, settings.manualContinueAfterRest); }
+    catch (error) { Alert.alert('Cannot start workout', error instanceof Error ? error.message : 'Review your workout and try again.'); }
   }
-
-  function enterStep(targetIndex: number, targetRound: number) {
-    const target = roundSteps[targetIndex];
-    if (!target) return;
-    clearMainTimer();
-    setRound(targetRound);
-    setStepIndex(targetIndex);
-    setPaused(false);
-    setRemaining(target.mode === 'time' ? target.value : 0);
-    setPhase('exercise');
-  }
-
-  function beginRest() {
-    clearMainTimer();
-    setPaused(false);
-    setRemaining(plan.restSeconds);
-    setPhase('rest');
-    cues.announceRest(plan.restSeconds, roundSteps[0]);
-  }
-
-  function finishWorkout() {
-    const duration = Math.max(1, startedAt.current ? Math.round((Date.now() - startedAt.current) / 1000) : elapsed);
-    setCompletedDuration(duration);
-    setElapsed(duration);
-    setPhase('done');
-    hapticSuccess();
-  }
-
-  function advance() {
-    clearMainTimer();
-    setPaused(false);
-
-    if (stepIndex < roundSteps.length - 1) {
-      enterStep(stepIndex + 1, round);
-      return;
-    }
-
-    if (round < plan.rounds) {
-      if (plan.restSeconds > 0) beginRest();
-      else enterStep(0, round + 1);
-      return;
-    }
-
-    finishWorkout();
-  }
-
+  function advance() { engine.act('next'); }
   function goBack() {
-    clearMainTimer();
-    setPaused(false);
-
-    if (phase === 'rest') {
-      enterStep(roundSteps.length - 1, round);
-      return;
-    }
-
-    if (stepIndex > 0) enterStep(stepIndex - 1, round);
-    else if (round > 1) enterStep(roundSteps.length - 1, round - 1);
+    engine.act('pause');
+    Alert.alert('Restart previous exercise?', 'Its previous result will be replaced when you complete it again. Time already spent remains included.', [
+      { text: 'Cancel', style: 'cancel' }, { text: 'Restart', onPress: () => engine.act('back') }
+    ]);
   }
-
-  function resetWorkout() {
-    clearMainTimer();
-    clearElapsed();
-    startedAt.current = null;
-    setRound(1);
-    setStepIndex(0);
-    setRemaining(3);
-    setPaused(false);
-    setElapsed(0);
-    setCompletedDuration(0);
-    setPhase('ready');
-    logged.current = false;
+  async function resetWorkout() { if (!saved) return; try { await engine.discard(); setSavedId(null); setSaveError(null); } catch {} }
+  function endWorkout() {
+    if (!session) { router.replace('/'); return; }
+    if (phase === 'done') { router.replace('/'); return; }
+    engine.act('pause');
+    Alert.alert('End workout?', 'Save the work recorded so far, or discard this session. Unconfirmed repetitions are not counted.', [
+      { text: 'Continue', style: 'cancel', onPress: () => engine.act('resume') },
+      { text: 'Save partial', onPress: () => engine.act('finish-partial') },
+      { text: 'Discard', style: 'destructive', onPress: () => { void engine.discard().then(() => router.replace('/')).catch(() => undefined); } }
+    ]);
   }
+  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { endWorkout(); return true; }); return () => sub.remove(); });
+  const togglePause = () => engine.act(paused ? 'resume' : 'pause');
+  const saveNotice = engine.error || saveError ? <View style={styles.compare}><Text style={styles.safety}>{saveError ?? engine.error}</Text><PrimaryButton compact label="Retry saving" onPress={() => { if (phase === 'done') void saveResult(); else void engine.retrySave().catch(() => undefined); }}/></View> : null;
+
+  if (engine.loading) return <View style={styles.centerPage}><ActivityIndicator color={colors.accent}/><Text style={styles.doneMeta}>Restoring workout…</Text></View>;
+  if (engine.readFailed) return <View style={styles.centerPage}><Text style={styles.doneMeta}>{engine.error}</Text><PrimaryButton label="Retry recovery" onPress={() => { void engine.retryLoad(); }}/><PrimaryButton label="Archive damaged copy and start fresh" onPress={() => Alert.alert('Preserve and reset this workout?', 'The original will remain available through Export data and recovery copies in History.', [{text:'Cancel',style:'cancel'},{text:'Archive and reset',onPress:()=> { void engine.recover().catch(() => Alert.alert('Recovery failed', 'The original has not been discarded.')); }}])}/><PrimaryButton label="Back" onPress={() => router.replace('/')}/></View>;
+  if (!step || !roundSteps.length) return <View style={styles.centerPage}><Text style={styles.doneTitle}>{t('noWorkoutLoaded')}</Text><PrimaryButton label={t('backBuilder')} onPress={() => router.replace('/')}/></View>;
 
   async function captureSummaryImage() {
     if (!shareCardRef.current) throw new Error('Workout summary is not ready.');
@@ -318,7 +172,7 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.preview}>
-          <ExerciseGlyph visual={step.exercise.visual} size={readyHeroSize} animated hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
+          <ExerciseGlyph exerciseId={step.exercise.id} visual={step.exercise.visual} size={readyHeroSize} animated side={step.side} hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
           <Text style={styles.previewLabel}>{t('firstUp')}</Text>
           <Text style={styles.previewName}>{step.exercise.name}</Text>
           {sideLabel(step) ? <Text style={[styles.sideBadge, isBodyweightStep && styles.bodyweightBadge]}>{sideLabel(step)}</Text> : null}
@@ -331,8 +185,9 @@ export default function WorkoutScreen() {
         </View>
 
         <View style={styles.bottom}>
+          {saveNotice}
           <PrimaryButton label={t('startCountdown')} onPress={startWorkout}/>
-          <Pressable onPress={() => router.replace('/')} style={styles.textButton}><Text style={styles.textButtonText}>{t('backBuilder')}</Text></Pressable>
+          <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>{t('backBuilder')}</Text></Pressable>
         </View>
       </View>
     );
@@ -343,16 +198,18 @@ export default function WorkoutScreen() {
       <View style={[styles.centerPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
         <Text style={[styles.kicker, bodyweightOnly && styles.bodyweightAccent]}>{t('getReady')}</Text>
         <Text style={styles.countdown}>{remaining || 'GO'}</Text>
+        {saveNotice}
+        <PrimaryButton label={paused ? 'Resume countdown' : 'Pause countdown'} onPress={togglePause}/>
+        <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>End workout</Text></Pressable>
         <Text style={styles.doneMeta}>{step.exercise.name}{sideLabel(step) ? ` · ${sideLabel(step)}` : ''}</Text>
       </View>
     );
   }
 
   if (phase === 'done') {
-    const previous = previousRef.current;
-    const delta = previous ? completedDuration - previous.durationSeconds : null;
+    const delta = comparisonResult?.workDelta ?? null;
     const comparison = delta === null
-      ? t('firstSession')
+      ? 'No comparable completed session yet'
       : Math.abs(delta) < 2
         ? '±0:00'
         : `${formatDuration(Math.abs(delta))} ${delta < 0 ? t('faster') : t('slower')}`;
@@ -368,9 +225,11 @@ export default function WorkoutScreen() {
       >
         <WorkoutShareCard
           ref={shareCardRef}
+          completedAt={session?.finishedAt}
           planName={plan.name}
           completedDuration={completedDuration}
-          rounds={plan.rounds}
+          rounds={actual?.rounds ?? 0}
+          partial={session?.status === 'partial'}
           totalReps={stats.totalReps}
           weightKg={plan.weightKg}
           volumeKg={stats.volumeKg}
@@ -380,6 +239,13 @@ export default function WorkoutScreen() {
           bodyweightItems={bodyweightSummary.items}
         />
 
+        <View style={styles.bodyweightSummary}>
+          <Text style={styles.bodyweightSummaryTitle}>COMPLETE EXERCISE RESULTS</Text>
+          {session?.results.map(result => { const item = session.steps[result.index]; return <View key={`${result.round}:${result.index}`} style={styles.bodyweightSummaryRow}>
+            <Text style={styles.bodyweightSummaryName}>R{result.round} · {item.exercise.name}{item.side !== 'none' ? ` · ${item.side}` : ''}</Text>
+            <Text style={styles.bodyweightSummaryValue}>{item.mode === 'reps' ? `${result.reps}/${item.value} reps` : `${formatDuration(Math.floor(result.seconds))}/${formatDuration(item.value)}`}{result.completed ? '' : ' · Partial / skipped'}</Text>
+          </View>; })}
+        </View>
         <View style={styles.shareActions}>
           <Pressable onPress={saveSummaryImage} style={styles.shareButton}>
             <Text style={styles.shareButtonIcon}>↓</Text>
@@ -393,13 +259,18 @@ export default function WorkoutScreen() {
         <Text style={styles.shareTargets}>Instagram · Facebook · TikTok · X · Messages · More</Text>
 
         <View style={styles.compare}>
-          <Text style={styles.compareLabel}>{t('vsLast')}</Text>
+          <Text style={styles.compareLabel}>WORK TIME VS LAST MATCHING WORKOUT</Text>
           <Text style={styles.compareValue}>{comparison}</Text>
+          <Text style={styles.doneMeta}>Faster is not always better. Prioritize controlled technique.</Text>
+          {previous && <Text style={styles.doneMeta}>Rest {formatDuration(actual?.restSeconds ?? 0)} vs {formatDuration(previous.restSeconds ?? 0)} · Pauses {formatDuration(actual?.pauseSeconds ?? 0)} vs {formatDuration(previous.pauseSeconds ?? 0)}</Text>}
         </View>
 
-        <PrimaryButton label={t('runAgain')} onPress={resetWorkout}/>
-        <Pressable onPress={() => router.replace('/history')} style={styles.outlineWide}><Text style={styles.outlineText}>{t('viewHistory')}</Text></Pressable>
-        <Pressable onPress={() => router.replace('/')} style={styles.textButton}><Text style={styles.textButtonText}>{t('backBuilder')}</Text></Pressable>
+        <Text style={styles.doneMeta}>{saved ? pendingSave ? 'Saved locally · waiting for history recovery' : 'Saved to history' : 'Saving workout…'}</Text>
+        {saveNotice}
+        <Text style={styles.doneMeta}>Work {formatDuration(actual?.workSeconds ?? 0)} · Rest {formatDuration(actual?.restSeconds ?? 0)} · Paused {formatDuration(actual?.pauseSeconds ?? 0)}</Text>
+        <PrimaryButton label={t('runAgain')} disabled={!saved} onPress={resetWorkout}/>
+        <Pressable disabled={!saved} onPress={() => router.replace('/history')} style={styles.outlineWide}><Text style={styles.outlineText}>{t('viewHistory')}</Text></Pressable>
+        <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>{t('backBuilder')}</Text></Pressable>
       </ScrollView>
     );
   }
@@ -413,22 +284,24 @@ export default function WorkoutScreen() {
           <Text style={styles.elapsed}>{formatDuration(elapsed)}</Text>
         </View>
         <View style={styles.main}>
-          <Text style={styles.kicker}>{remaining === 0 && settings.manualContinueAfterRest ? t('restComplete') : t('roundComplete')}</Text>
+          <Text style={styles.kicker}>{remaining === 0 && session?.manualRest ? t('restComplete') : t('roundComplete')}</Text>
           <Text style={styles.restLabel}>{t('rest')}</Text>
           <Text style={styles.timer}>{remaining}</Text>
           <Text style={styles.unit}>{t('seconds')}</Text>
           <Text style={styles.next}>{t('next')}: {roundSteps[0].exercise.name}{sideLabel(roundSteps[0]) ? ` · ${sideLabel(roundSteps[0])}` : ''}</Text>
         </View>
         <View style={styles.bottom}>
+          {saveNotice}
           {remaining > 0 ? (
-            <Pressable onPress={() => setPaused((x) => !x)} style={styles.outlineWide}>
+            <Pressable onPress={togglePause} style={styles.outlineWide}>
               <Text style={styles.outlineText}>{paused ? t('resume') : t('pause')}</Text>
             </Pressable>
           ) : null}
           <PrimaryButton
-            label={remaining === 0 && settings.manualContinueAfterRest ? t('continue') : t('skipRest')}
-            onPress={() => enterStep(0, round + 1)}
+            label={remaining === 0 && session?.manualRest ? t('continue') : t('skipRest')}
+            onPress={() => engine.act('continue')}
           />
+          <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>End workout</Text></Pressable>
         </View>
       </View>
     );
@@ -442,11 +315,11 @@ export default function WorkoutScreen() {
       <View style={styles.statusRow}>
         <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
         <Text style={styles.elapsed}>{formatDuration(elapsed)}</Text>
-        <Text style={styles.status}>{stepIndex + 1} / {roundSteps.length}</Text>
+        <Text style={styles.status}>{paused ? 'PAUSED · ' : ''}{stepIndex + 1} / {roundSteps.length}</Text>
       </View>
 
       <View style={styles.main}>
-        <ExerciseGlyph visual={step.exercise.visual} size={heroSize} animated hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
+        <ExerciseGlyph exerciseId={step.exercise.id} visual={step.exercise.visual} size={heroSize} animated={!paused} side={step.side} hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
         {sideLabel(step) ? <Text style={[styles.sideBadge, isBodyweightStep && styles.bodyweightBadge]}>{sideLabel(step)}</Text> : null}
         <Text style={styles.exerciseName}>{step.exercise.name}</Text>
         <Text style={styles.target}>{displayedValue}</Text>
@@ -460,14 +333,16 @@ export default function WorkoutScreen() {
       </View>
 
       <View style={styles.bottom}>
+        {saveNotice}
         <View style={styles.split}>
           <Pressable onPress={goBack} style={styles.outlineHalf}><Text style={styles.outlineText}>← {t('back')}</Text></Pressable>
-          {step.mode === 'time' ? (
-            <Pressable onPress={() => setPaused((x) => !x)} style={styles.outlineHalf}><Text style={styles.outlineText}>{paused ? t('resume') : t('pause')}</Text></Pressable>
-          ) : <View style={{ flex: 1 }}/>}
+          {(
+            <Pressable onPress={togglePause} style={styles.outlineHalf}><Text style={styles.outlineText}>{paused ? t('resume') : t('pause')}</Text></Pressable>
+          )}
         </View>
-        <PrimaryButton label={stepIndex === roundSteps.length - 1 && round === plan.rounds ? t('finishWorkout') : t('doneNext')} onPress={advance}/>
-        <Pressable onPress={() => router.replace('/')} style={styles.textButton}><Text style={styles.textButtonText}>{t('endWorkout')}</Text></Pressable>
+        <PrimaryButton disabled={paused} label={step.mode === 'time' && remaining > 0 ? 'Finish step early' : stepIndex === roundSteps.length - 1 && round === plan.rounds ? t('finishWorkout') : t('doneNext')} onPress={advance}/>
+        <Pressable disabled={paused} onPress={() => engine.act('skip')} style={styles.textButton}><Text style={styles.textButtonText}>Skip exercise</Text></Pressable>
+        <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>{t('endWorkout')}</Text></Pressable>
       </View>
     </View>
   );
@@ -567,6 +442,7 @@ const styles = StyleSheet.create({
   shareButtonText: { color: colors.text, fontSize: 14, fontWeight: '900' },
   shareButtonPrimaryText: { color: colors.accentText },
   shareTargets: { color: colors.muted, fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: -5 },
+  safety: { color: colors.danger, fontSize: 12, textAlign: 'center' },
   compare: { backgroundColor: colors.panel, borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 4 },
   compareLabel: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
   compareValue: { color: colors.text, fontSize: 18, fontWeight: '900' }
