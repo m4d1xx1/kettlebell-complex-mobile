@@ -2,12 +2,12 @@
 // These checks do not replace a physical iOS/Android test.
 const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('node:assert/strict'),ts=require('typescript');
 const root=path.resolve(__dirname,'..');
-const memory=new Map(),failKeys=new Set(),timers=new Map(),listeners=new Set();
+const memory=new Map(),failKeys=new Set(),writeGates=new Map(),timers=new Map(),listeners=new Set();
 let mono=10000,wall=1800000000000,activeHarness,timerId=0;
 const NativeDate=Date;
 class FakeDate extends NativeDate { constructor(...args){super(...(args.length?args:[wall]));} static now(){return wall;} }
 const native={Alert:{alert:()=>{}},AppState:{currentState:'active',addEventListener:(_event,fn)=>{listeners.add(fn);return {remove:()=>listeners.delete(fn)}}}};
-const storage={getItem:async k=>memory.get(k)??null,setItem:async(k,v)=>{await Promise.resolve();if(failKeys.has(k))throw Error('write failed');memory.set(k,v)},removeItem:async k=>{if(failKeys.has(k))throw Error('write failed');memory.delete(k)},getAllKeys:async()=>[...memory.keys()],multiGet:async keys=>keys.map(k=>[k,memory.get(k)??null])};
+const storage={getItem:async k=>memory.get(k)??null,setItem:async(k,v)=>{await Promise.resolve();if(writeGates.has(k))await writeGates.get(k);if(failKeys.has(k))throw Error('write failed');memory.set(k,v)},removeItem:async k=>{if(failKeys.has(k))throw Error('write failed');memory.delete(k)},getAllKeys:async()=>[...memory.keys()],multiGet:async keys=>keys.map(k=>[k,memory.get(k)??null])};
 function depsChanged(a,b){return !a||!b||a.length!==b.length||a.some((v,i)=>!Object.is(v,b[i]));}
 const react={__esModule:true,createContext:()=>({Provider:'Provider'}),useContext:()=>activeHarness.value,
  useState:init=>{const h=activeHarness,i=h.cursor++;if(!(i in h.slots))h.slots[i]=typeof init==='function'?init():init;return [h.slots[i],v=>{h.slots[i]=typeof v==='function'?v(h.slots[i]):v;h.dirty=true}]},
@@ -47,5 +47,12 @@ async function settle(h){for(let i=0;i<40;i++){await Promise.resolve();if(h?.dir
  native.AppState.currentState='background';listeners.forEach(fn=>fn('background'));await settle(hook);await advance(10000);assert.equal(hook.value.session.workMs,3000);assert.equal(hook.value.session.paused,true);
  hook.unmount();await settle();native.AppState.currentState='active';hook=harness(()=>useWorkoutSession(true));await settle(hook);assert.equal(hook.value.session.paused,true);assert.equal(hook.value.session.workMs,3000);
  hook.value.act('resume');await settle(hook);await advance(17000);assert.equal(hook.value.session.phase,'done');assert.ok(hook.value.session.finishedAt);await hook.value.acknowledge();hook.unmount();await settle();assert.equal(memory.has('kb.activeSession.v1'),false);
+ // Leaving during the initial checkpoint write must persist a paused session.
+ let release;writeGates.set('kb.activeSession.v1',new Promise(resolve=>release=resolve));
+ let starting=harness(()=>useWorkoutSession(true));await settle(starting);const inFlight=starting.value.start(plan,BASE_EXERCISES,false);await settle(starting);starting.unmount();release();writeGates.delete('kb.activeSession.v1');await inFlight;await settle();
+ let restored=harness(()=>useWorkoutSession(true));await settle(restored);assert.equal(restored.value.session.paused,true);await restored.value.discard();restored.unmount();await settle();
+ // Checkpoint deletion failure must remain recoverable; acknowledgement can be retried.
+ let failedAck=harness(()=>useWorkoutSession(true));await settle(failedAck);await failedAck.value.start(plan,BASE_EXERCISES,false);await settle(failedAck);failedAck.value.act('finish-partial');await settle(failedAck);
+ failKeys.add('kb.activeSession.v1');await assert.rejects(failedAck.value.acknowledge());assert.ok(memory.has('kb.activeSession.v1'));failKeys.clear();await failedAck.value.acknowledge();failedAck.unmount();await settle();assert.equal(memory.has('kb.activeSession.v1'),false);
  provider.unmount();console.log('PASS: concurrent provider mutations, pending results, recovery archives, deduplication, calendar jumps, background pause, remount recovery and checkpoint acknowledgement.');
 })().catch(error=>{console.error(error);process.exitCode=1});

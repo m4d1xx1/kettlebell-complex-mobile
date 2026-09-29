@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
+import { WorkoutOverview } from '../src/components/WorkoutOverview';
+import { RepResultSheet } from '../src/components/RepResultSheet';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { WorkoutShareCard } from '../src/components/WorkoutShareCard';
@@ -22,10 +24,10 @@ import { formatDuration } from '../src/utils/format';
 
 export default function WorkoutScreen() {
   useKeepAwake();
-  const { width, height } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const heroSize = Math.max(100, Math.min(width * 0.8, (height - insets.top - insets.bottom - 390) * 0.85, 320));
-  const readyHeroSize = Math.min(width * 0.65, height * 0.3, 270);
+  const heroSize = Math.max(100, Math.min(width * 0.7, (height - insets.top - insets.bottom - 580) / Math.max(1,fontScale), 280));
+  const readyHeroSize = Math.min(width * 0.45, height * 0.2, 170);
   const { plan: draft, exercises, completeWorkout, settings, history, hydrated } = useWorkout();
   const { t } = useI18n();
   const cues = useWorkoutCues(settings);
@@ -50,6 +52,7 @@ export default function WorkoutScreen() {
   const progress = (session?.results.filter(r => r.completed).length ?? 0) / Math.max(1, roundSteps.length * plan.rounds);
   const shareCardRef = useRef<View | null>(null);
   const logging = useRef<string | null>(null);
+  const [repEntry, setRepEntry] = useState<{stepKey:string;round:number;name:string;target:number;ending:boolean} | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [pendingSave, setPendingSave] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -91,6 +94,11 @@ export default function WorkoutScreen() {
     try { await engine.start(draft, exercises, settings.manualContinueAfterRest); }
     catch (error) { Alert.alert('Cannot start workout', error instanceof Error ? error.message : 'Review your workout and try again.'); }
   }
+  function enterReps(ending = false) {
+    if (!session || phase !== 'exercise' || step.mode !== 'reps') return;
+    engine.act('pause');
+    setRepEntry({stepKey:step.stepKey,round:session.round,name:`${step.exercise.name}${sideLabel(step) ? ` · ${sideLabel(step)}` : ''}`,target:step.value,ending});
+  }
   function advance() { engine.act('next'); }
   function goBack() {
     engine.act('pause');
@@ -103,9 +111,9 @@ export default function WorkoutScreen() {
     if (!session) { router.replace('/'); return; }
     if (phase === 'done') { router.replace('/'); return; }
     engine.act('pause');
-    Alert.alert('End workout?', 'Save the work recorded so far, or discard this session. Unconfirmed repetitions are not counted.', [
+    Alert.alert('End workout?', 'Save recorded work or discard this session. For a rep exercise you can enter the reps completed before saving.', [
       { text: 'Continue', style: 'cancel', onPress: () => engine.act('resume') },
-      { text: 'Save partial', onPress: () => engine.act('finish-partial') },
+      { text: 'Save partial', onPress: () => phase === 'exercise' && step.mode === 'reps' ? enterReps(true) : engine.act('finish-partial') },
       { text: 'Discard', style: 'destructive', onPress: () => { void engine.discard().then(() => router.replace('/')).catch(() => undefined); } }
     ]);
   }
@@ -162,7 +170,7 @@ export default function WorkoutScreen() {
 
   if (phase === 'ready') {
     return (
-      <View style={[styles.readyPage, { paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18) }]}>
+      <ScrollView style={styles.readyPage} contentContainerStyle={{ padding:20, paddingTop: Math.max(insets.top, 18), paddingBottom: Math.max(insets.bottom, 18), gap:20 }} showsVerticalScrollIndicator>
         <View style={styles.readyTop}>
           <Text style={[styles.kicker, bodyweightOnly && styles.bodyweightAccent]}>{t('ready')}</Text>
           <Text style={styles.readyTitle}>{plan.name}</Text>
@@ -184,12 +192,13 @@ export default function WorkoutScreen() {
           </View>
         </View>
 
+        <WorkoutOverview plan={plan} steps={roundSteps} manualRest={settings.manualContinueAfterRest}/>
         <View style={styles.bottom}>
           {saveNotice}
           <PrimaryButton label={t('startCountdown')} onPress={startWorkout}/>
           <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>{t('backBuilder')}</Text></Pressable>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -277,7 +286,7 @@ export default function WorkoutScreen() {
 
   if (phase === 'rest') {
     return (
-      <View style={[styles.workoutPage, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <ScrollView style={styles.workoutPage} contentContainerStyle={{flexGrow:1,padding:16,paddingTop:Math.max(insets.top,12),paddingBottom:Math.max(insets.bottom,12),gap:12}} showsVerticalScrollIndicator>
         <Progress value={progress} color={bodyweightOnly ? colors.bodyweight : colors.accent}/>
         <View style={styles.statusRow}>
           <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
@@ -303,14 +312,15 @@ export default function WorkoutScreen() {
           />
           <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>End workout</Text></Pressable>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
   const displayedValue = step.mode === 'time' ? remaining : step.value;
 
   return (
-    <View style={[styles.workoutPage, { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 12) }]}>
+    <ScrollView style={styles.workoutPage} contentContainerStyle={{flexGrow:1,padding:16,paddingTop:Math.max(insets.top,12),paddingBottom:Math.max(insets.bottom,12),gap:12}} showsVerticalScrollIndicator>
+      {repEntry && <RepResultSheet name={repEntry.name} target={repEntry.target} ending={repEntry.ending} onCancel={()=>setRepEntry(null)} onSave={reps=>{if(engine.act({type:'record-reps',reps,stepKey:repEntry.stepKey,round:repEntry.round,endWorkout:repEntry.ending}))setRepEntry(null);}}/>}
       <Progress value={progress} color={isBodyweightStep ? colors.bodyweight : colors.accent}/>
       <View style={styles.statusRow}>
         <Text style={styles.status}>{t('round')} {round} / {plan.rounds}</Text>
@@ -319,7 +329,7 @@ export default function WorkoutScreen() {
       </View>
 
       <View style={styles.main}>
-        <ExerciseGlyph exerciseId={step.exercise.id} visual={step.exercise.visual} size={heroSize} animated={!paused} side={step.side} hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
+        <ExerciseGlyph exerciseId={step.exercise.id} visual={step.exercise.visual} size={fontScale > 1.3 || height < 700 ? Math.min(heroSize,150) : heroSize} animated={!paused} side={step.side} hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
         {sideLabel(step) ? <Text style={[styles.sideBadge, isBodyweightStep && styles.bodyweightBadge]}>{sideLabel(step)}</Text> : null}
         <Text style={styles.exerciseName}>{step.exercise.name}</Text>
         <Text style={styles.target}>{displayedValue}</Text>
@@ -341,10 +351,11 @@ export default function WorkoutScreen() {
           )}
         </View>
         <PrimaryButton disabled={paused} label={step.mode === 'time' && remaining > 0 ? 'Finish step early' : stepIndex === roundSteps.length - 1 && round === plan.rounds ? t('finishWorkout') : t('doneNext')} onPress={advance}/>
+        {step.mode === 'reps' && <Pressable accessibilityRole="button" onPress={() => enterReps()} style={styles.textButton}><Text style={styles.textButtonText}>Record a different rep count</Text></Pressable>}
         <Pressable disabled={paused} onPress={() => engine.act('skip')} style={styles.textButton}><Text style={styles.textButtonText}>Skip exercise</Text></Pressable>
         <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>{t('endWorkout')}</Text></Pressable>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -379,8 +390,8 @@ function DoneStat({ label, value, tone = 'kettlebell' }: { label: string; value:
 }
 
 const styles = StyleSheet.create({
-  workoutPage: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  readyPage: { flex: 1, backgroundColor: colors.bg, padding: 20 },
+  workoutPage: { flex: 1, backgroundColor: colors.bg },
+  readyPage: { flex: 1, backgroundColor: colors.bg },
   readyTop: { gap: 5 },
   readyTitle: { color: colors.text, fontSize: 31, fontWeight: '900' },
   readyMeta: { color: colors.muted, fontSize: 14 },
@@ -392,10 +403,10 @@ const styles = StyleSheet.create({
   cueStatusText: { color: colors.muted, fontSize: 9, fontWeight: '800', textAlign: 'center' },
   progressTrack: { height: 7, borderRadius: 5, backgroundColor: colors.card, overflow: 'hidden' },
   progressBar: { height: '100%', backgroundColor: colors.accent },
-  statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
   status: { color: colors.muted, fontSize: 12, fontWeight: '800' },
   elapsed: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  main: { flex: 1, minHeight: 0, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  main: { flexGrow: 1, flexShrink: 0, alignItems: 'center', justifyContent: 'center', gap: 4 },
   kicker: { color: colors.accent, fontSize: 12, fontWeight: '900', letterSpacing: 1.7, textAlign: 'center' },
   exerciseName: { color: colors.text, fontSize: 30, textAlign: 'center', fontWeight: '900', marginTop: 2 },
   sideBadge: { color: colors.accentText, backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, overflow: 'hidden' },
@@ -411,9 +422,9 @@ const styles = StyleSheet.create({
   next: { color: colors.muted, marginTop: 20, fontSize: 14, textAlign: 'center' },
   nextExercise: { color: colors.muted, marginTop: 12, fontSize: 12, fontWeight: '700' },
   bottom: { gap: 8 },
-  split: { flexDirection: 'row', gap: 10 },
+  split: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   outlineWide: { minHeight: 52, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  outlineHalf: { flex: 1, minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  outlineHalf: { flex: 1, minWidth: 120, padding:12, minHeight: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   outlineText: { color: colors.text, fontWeight: '900' },
   textButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   textButtonText: { color: colors.muted, fontWeight: '800' },

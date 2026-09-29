@@ -14,6 +14,35 @@ state; when this snapshot is present on GitHub main, those pending-upload notes 
 superseded. The GitHub publication SHA differs from the local development SHA.
 Read the audit-fixes section for remaining animation and physical-device validation.
 
+## Priority-list implementation — 2026-09-29
+
+Base on GitHub main: `f335ab98859444ed3fac858d1a8fa334b5b240aa`.
+Verified its GitHub Actions run #80 succeeded, including both regression suites.
+This section supersedes the earlier remaining-forearm-only rig description.
+
+- Actual repetition entry: the workout pauses and opens a numeric editor from 0 to
+  the step target. Save-and-continue and save-and-end record the exact count, per side.
+  Cancel leaves the session paused. Partial reps affect volume/bodyweight summaries,
+  history and recovery. Invalid/stale/duplicate submissions are rejected.
+- Full planar body rig: `bodyRig.ts` uses fixed upper/lower arm and leg lengths plus
+  fixed torso and neck lengths. Authored poses guide IK keyframes; joint angles are
+  interpolated continuously to avoid branch flips and collapsing limbs. Keyframes are
+  cached. Wide windmill and squat stances have explicit rig settings. The lowest foot
+  tracks floor/jump height. The old forearm-only module is removed.
+  This is a stylized 2-D skeleton, not clinical anatomical or technique certification.
+  Some projected contact/stance details still need qualified human/device review.
+- Responsive execution: workout/rest screens scroll when content exceeds the viewport;
+  hero size adapts to available height and font scale, status/buttons wrap, primary
+  buttons support multiline text. Keep fullscreen route, cyan/lime accents and no arrows.
+- Ready screen shows the full expanded exercise order, side targets, equipment/load,
+  rounds, rest behavior and estimated duration before the start button.
+- Tests now cover partial rep totals/recovery/stale sides, 32,032 sampled poses with
+  constant segment lengths, canvas bounds and continuous motion, unmount during initial
+  checkpoint saving and failed checkpoint acknowledgement. These are automated adapter
+  tests, not device E2E tests. TypeScript, both suites and iOS export are the local gates.
+- Physical phone validation remains required: small screens, accessibility font sizes,
+  rep modal/keyboard, lifecycle interruption, audio and native sharing.
+
 ## Current status
 
 The app is a real Expo / React Native mobile app for iOS and Android. It started as a kettlebell complex builder and is now expanding into a broader fitness product combining kettlebell, bodyweight, workout execution, progress, achievements, social sharing and future group training.
@@ -23,7 +52,7 @@ Expo SDK: `57`
 React Native: `0.86.3`
 React: `19.2.3`
 
-Latest verified GitHub Actions runs are green through run #76. Validation includes:
+Latest verified GitHub Actions run is green: #80 for `f335ab9`. Validation includes:
 - npm install
 - Expo package alignment
 - Expo Doctor

@@ -22,11 +22,11 @@ export function createSession(plan: WorkoutPlan, catalog: ExerciseDefinition[], 
     fingerprint: planFingerprint(frozen, catalog, manualRest), phase: 'countdown', round: 1, index: 0, phaseMs: 0,
     workMs: 0, restMs: 0, pauseMs: 0, paused: false, waiting: false, lastAt: now, results: [], status: 'completed' };
 }
-function record(s: WorkoutSession, completed: boolean) {
+function record(s: WorkoutSession, completed: boolean, actualReps?: number) {
   const step = s.steps[s.index];
   s.results = [...s.results.filter(r => r.round !== s.round || r.index !== s.index), { round: s.round, index: s.index,
     workSeconds: s.phaseMs / 1000,
-    reps: step.mode === 'reps' && completed ? step.value : 0,
+    reps: step.mode === 'reps' ? actualReps ?? (completed ? step.value : 0) : 0,
     seconds: step.mode === 'time' ? Math.min(step.value, s.phaseMs / 1000) : 0,
     completed: completed && (step.mode !== 'time' || s.phaseMs >= step.value * 1000) }];
 }
@@ -67,10 +67,19 @@ export function tickSession(previous: WorkoutSession, now: number): WorkoutSessi
   }
   return s;
 }
-export type SessionAction = 'pause' | 'resume' | 'next' | 'skip' | 'continue' | 'back' | 'finish-partial';
+export type RepAction = { type: 'record-reps'; reps: number; stepKey: string; round: number; endWorkout: boolean };
+export type SessionAction = RepAction | 'pause' | 'resume' | 'next' | 'skip' | 'continue' | 'back' | 'finish-partial';
 export function actOnSession(previous: WorkoutSession, action: SessionAction, now: number): WorkoutSession {
   const s = { ...tickSession(previous, now) };
   if (s.phase === 'done') return s;
+  if (typeof action === 'object') {
+    const step = s.steps[s.index];
+    if (s.phase !== 'exercise' || step.mode !== 'reps' || step.stepKey !== action.stepKey || s.round !== action.round || !Number.isInteger(action.reps) || action.reps < 0 || action.reps > step.value) return s;
+    record(s, action.reps === step.value, action.reps);
+    if (action.endWorkout) { enter(s, 'done'); s.status = s.results.length === s.steps.length * s.plan.rounds && s.results.every(r => r.completed) ? 'completed' : 'partial'; }
+    else { s.paused = false; next(s); }
+    return s;
+  }
   if (action === 'pause') { s.paused = true; return s; }
   if (action === 'resume') { s.paused = false; return s; }
   if (action === 'finish-partial') { if (s.phase === 'exercise') record(s, false); enter(s, 'done'); s.status = 'partial'; return s; }
@@ -118,5 +127,5 @@ export function validSession(x: unknown): x is WorkoutSession {
   const expected = buildRoundSteps(x.plan, x.steps.map((s: WorkoutStep) => s.exercise));
   if (JSON.stringify(expected) !== JSON.stringify(x.steps) || x.fingerprint !== planFingerprint(x.plan, x.steps.map((s: WorkoutStep) => s.exercise), x.manualRest)) return false;
   if (x.waiting && (x.phase !== 'rest' || !x.manualRest || x.phaseMs !== x.plan.restSeconds * 1000)) return false;
-  return Array.isArray(x.results) && x.results.every((r: any) => object(r) && Number.isInteger(r.round) && r.round >= 1 && r.round <= x.plan.rounds && Number.isInteger(r.index) && r.index >= 0 && r.index < x.steps.length && number(r.reps) && number(r.seconds) && (r.workSeconds === undefined || number(r.workSeconds)) && typeof r.completed === 'boolean' && (x.steps[r.index].mode === 'time' ? r.reps === 0 && r.seconds <= x.steps[r.index].value && (!r.completed || r.seconds === x.steps[r.index].value) : r.seconds === 0 && r.reps === (r.completed ? x.steps[r.index].value : 0))) && new Set(x.results.map((r: StepResult) => `${r.round}:${r.index}`)).size === x.results.length;
+  return Array.isArray(x.results) && x.results.every((r: any) => object(r) && Number.isInteger(r.round) && r.round >= 1 && r.round <= x.plan.rounds && Number.isInteger(r.index) && r.index >= 0 && r.index < x.steps.length && number(r.reps) && number(r.seconds) && (r.workSeconds === undefined || number(r.workSeconds)) && typeof r.completed === 'boolean' && (x.steps[r.index].mode === 'time' ? r.reps === 0 && r.seconds <= x.steps[r.index].value && (!r.completed || r.seconds === x.steps[r.index].value) : r.seconds === 0 && Number.isInteger(r.reps) && r.reps <= x.steps[r.index].value && (!r.completed || r.reps === x.steps[r.index].value))) && new Set(x.results.map((r: StepResult) => `${r.round}:${r.index}`)).size === x.results.length;
 }

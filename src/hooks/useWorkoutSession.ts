@@ -68,13 +68,15 @@ export function useWorkoutSession(enabled: boolean) {
     finally { busy.current = false; }
   };
   const act = useCallback((action: SessionAction) => {
-    if (busy.current) return;
+    if (busy.current) return false;
     const s = current.current;
-    const advances = ['next','skip','continue','back'].includes(action);
+    const advances = typeof action === 'object' || ['next','skip','continue','back'].includes(action);
     const now = monotonicNow();
-    if (advances && (now - lastAction.current < 500 || s?.index !== session?.index || s?.round !== session?.round || s?.phase !== session?.phase)) return;
+    if (advances && (now - lastAction.current < 500 || s?.index !== session?.index || s?.round !== session?.round || s?.phase !== session?.phase)) return false;
     if (advances) lastAction.current = now;
-    if (s) commit(actOnSession(s, action, now), true);
+    if (!s) return false;
+    commit(actOnSession(s, action, now), true);
+    return true;
   }, [commit, session?.index, session?.round, session?.phase]);
   const discard = async () => {
     if (busy.current) return;

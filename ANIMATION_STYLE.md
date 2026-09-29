@@ -104,3 +104,18 @@ schematic. Do not claim medically accurate activation or verified exercise coach
 QA: 3,232 sampled poses passed constant-forearm/floor checks; four rendered poses
 per built-in exercise were inspected. Physical-phone and qualified technique reviews
 remain outstanding.
+
+## Full planar rig update (supersedes the forearm-only correction)
+
+`bodyRig.ts` now drives all 32 motions with common fixed lengths for upper arms (16),
+forearms (15.5), thighs/shins (18 each), torso (24) and neck (10) in viewBox units.
+Authored poses are converted to IK keyframes; angle interpolation keeps segment
+lengths fixed between poses and removes discrete branch flips. The rigged keyframes
+are cached per motion. Stance rules handle wide windmills and centered squats.
+The lowest foot follows the authored floor/jump height. Styling and color mappings
+remain unchanged.
+
+Tests sample 1,001 poses per exercise for lengths, bounds and discontinuities.
+Rendered contact sheets and a four-movement GIF were reviewed. This is a stylized
+planar rig; projected contacts and exercise technique still require human review.
+It does not establish medically correct anatomy or exercise instruction.

@@ -1,4 +1,4 @@
-import { rigArms } from './armRig';
+import { rigBody, blendRig } from './bodyRig';
 import { ExerciseVisual } from '../types';
 
 export type Point = { x: number; y: number };
@@ -6,7 +6,7 @@ export type Joint = 'head' | 'shoulder' | 'hip' | 'leftElbow' | 'rightElbow' | '
 export type Pose = Record<Joint, Point> & { bellAngle: number; bellDepth: number };
 export type Muscle = 'Glutes' | 'Hamstrings' | 'Quads' | 'Calves' | 'Core' | 'Obliques' | 'Chest' | 'Upper back' | 'Lats' | 'Shoulders' | 'Biceps' | 'Triceps' | 'Forearms' | 'Hip flexors';
 export type Frame = { at: number; pose: Pose };
-export type Motion = { frames: Frame[]; duration: number; muscles: Muscle[]; equipment: 'kettlebell' | 'bodyweight'; hold?: boolean };
+export type Motion = { frames: Frame[]; duration: number; muscles: Muscle[]; equipment: 'kettlebell' | 'bodyweight'; hold?: boolean; stance?: 'wide-straight' | 'squat' };
 const pt = (x: number, y: number): Point => ({ x, y });
 const stand: Pose = {
   head: pt(46, 25), shoulder: pt(46, 35), hip: pt(46, 59),
@@ -131,6 +131,9 @@ export const EXERCISE_MOTIONS: Record<string, Motion> = {
   'bodyweight-reverse-lunge': bw([pose(lungeStart, { rightHand: pt(62, 63), rightElbow: pt(59, 48), bellAngle: 0 }), lunge(airStand), pose(lungeStart, { rightHand: pt(62, 63), rightElbow: pt(59, 48), bellAngle: 0 }), pose(lunge(airStand), { leftKnee: pt(58, 88), rightKnee: pt(26, 72), leftFoot: pt(76, 90), rightFoot: pt(27, 90) }), pose(lungeStart, { rightHand: pt(62, 63), rightElbow: pt(59, 48), bellAngle: 0 })], squatMuscles, 5200)
 };
 
+EXERCISE_MOTIONS.windmill.stance = 'wide-straight';
+for (const id of ['goblet-squat','front-squat','air-squat','thruster']) EXERCISE_MOTIONS[id].stance = 'squat';
+
 const defaults: Record<ExerciseVisual, string> = {
   swing: 'swing', clean: 'clean', 'high-pull': 'high-pull', press: 'strict-press', snatch: 'snatch', squat: 'goblet-squat', lunge: 'reverse-lunge', row: 'row', deadlift: 'deadlift', halo: 'halo', carry: 'suitcase-hold', pushup: 'push-up', plank: 'plank', burpee: 'burpee', bridge: 'glute-bridge', 'high-knees': 'high-knees', windmill: 'windmill', 'floor-press': 'floor-press'
 };
@@ -143,17 +146,15 @@ export function getMotion(exerciseId: string | undefined, visual: ExerciseVisual
   return exerciseId ? { ...motion, equipment, muscles: [] } : { ...motion, equipment };
 }
 
+const rigCache = new WeakMap<Motion, Frame[]>();
 export function samplePose(motion: Motion, progress: number): Pose {
+  let frames = rigCache.get(motion);
+  if (!frames) { frames = motion.frames.map(frame => ({ ...frame, pose: rigBody(frame.pose, motion.stance) })); rigCache.set(motion, frames); }
   const p = Math.max(0, Math.min(1, progress));
-  const next = motion.frames.findIndex(frame => frame.at > p);
-  const i = next < 0 ? motion.frames.length - 2 : Math.max(0, next - 1);
-  const a = motion.frames[i], b = motion.frames[i + 1];
+  const next = frames.findIndex(frame => frame.at > p);
+  const i = next < 0 ? frames.length - 2 : Math.max(0, next - 1);
+  const a = frames[i], b = frames[i + 1];
   const linear = (p - a.at) / (b.at - a.at);
   const t = linear * linear * (3 - 2 * linear);
-  const out = { ...a.pose };
-  for (const key of Object.keys(a.pose) as (keyof Pose)[]) {
-    if (key === 'bellAngle' || key === 'bellDepth') out[key] = a.pose[key] + (b.pose[key] - a.pose[key]) * t;
-    else out[key] = pt(a.pose[key].x + (b.pose[key].x - a.pose[key].x) * t, a.pose[key].y + (b.pose[key].y - a.pose[key].y) * t);
-  }
-  return rigArms(motion, out);
+  return blendRig(a.pose, b.pose, t);
 }

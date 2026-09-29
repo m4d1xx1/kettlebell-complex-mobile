@@ -58,6 +58,19 @@ let skippedRest=tickSession(start(),14000);skippedRest=actOnSession(skippedRest,
 const prior={id:'prior',sessionId:'prior',status:'completed',timeBasis:'monotonic-v2',fingerprint:rested.fingerprint,workSeconds:20,restSeconds:5,pauseSeconds:0};
 assert.equal(compareWork(skippedRest,[prior]).workDelta,0);
 assert.equal(compareWork(skippedRest,[{...prior,timeBasis:'active-v1'}]),null);
+// Actual rep entry preserves partial work, side identity and recovery compatibility.
+const repPlan={...reps,items:[{...reps.items[0],value:10}]};
+const entry = (run,count,endWorkout=false) => ({type:'record-reps',reps:count,round:run.round,stepKey:run.steps[run.index].stepKey,endWorkout});
+for(const count of [0,6,10]) {
+  let run=actOnSession(tickSession(start(repPlan),4000),'pause',10000);
+  run=actOnSession(run,entry(run,count),13000);
+  assert.equal(sessionSummary(run).totalReps,count);assert.equal(sessionSummary(run).volumeKg,count*16);
+  assert.equal(run.status,count===10?'completed':'partial');assert.equal(validSession(JSON.parse(JSON.stringify(run))),true);
+}
+let partial=tickSession(start(reps),4000);partial=actOnSession(partial,entry(partial,6,true),12000);assert.equal(partial.phase,'done');assert.equal(partial.results[0].reps,6);assert.equal(partial.status,'partial');
+for(const count of [-1,11,1.5,NaN]) {const run=tickSession(start(repPlan),4000);assert.equal(actOnSession(run,entry(run,count),5000).results.length,0);}
+const sidePlan={...repPlan,items:[{key:'side',exerciseId:'row',mode:'reps',value:10,side:'both'}]};
+let bilateral=tickSession(start(sidePlan),4000);const old=entry(bilateral,6);bilateral=actOnSession(bilateral,old,5000);assert.equal(bilateral.index,1);bilateral=actOnSession(bilateral,old,6000);assert.equal(bilateral.results.length,1);bilateral=actOnSession(bilateral,entry(bilateral,8),7000);assert.equal(sessionSummary(bilateral).totalReps,14);
 // Focus and experience must change the actual prescription, not just its title.
 const prescription = p => JSON.stringify({rest:p.restSeconds,items:p.items.map(({exerciseId,mode,value,side})=>({exerciseId,mode,value,side}))});
 for(const equipment of ['kettlebell','bodyweight']) {
@@ -65,15 +78,17 @@ for(const equipment of ['kettlebell','bodyweight']) {
   for(const goal of ['Strength','Conditioning']) assert.notEqual(prescription(quickStartPlan(equipment,10,'Beginner',goal,16,BASE_EXERCISES)),prescription(quickStartPlan(equipment,10,'Intermediate',goal,16,BASE_EXERCISES)));
 }
 const {getMotion,samplePose}=load('src/animation/exercisePoses.ts');
+const bones=[['hip','shoulder',24],['shoulder','head',10],['hip','leftKnee',18],['hip','rightKnee',18],['leftKnee','leftFoot',18],['rightKnee','rightFoot',18],['shoulder','leftElbow',16],['shoulder','rightElbow',16],['leftElbow','leftHand',15.5],['rightElbow','rightHand',15.5]];
 for(const e of BASE_EXERCISES) {
-  const motion=getMotion(e.id,e.visual,e.equipment??'kettlebell');
-  for(let i=0;i<=100;i++) {
-    const pose=samplePose(motion,i/100);
-    for(const side of ['left','right']) {
-      const a=pose[side+'Elbow'],b=pose[side+'Hand'];
-      assert.ok(Math.abs(Math.hypot(a.x-b.x,a.y-b.y)-15.5)<1e-6, e.id+' forearm collapse');
-      assert.ok(a.y<=90.0001,e.id+' elbow below floor');
+  const motion=getMotion(e.id,e.visual,e.equipment??'kettlebell');let prev=samplePose(motion,0);
+  for(let i=0;i<=1000;i++) {
+    const pose=samplePose(motion,i/1000);
+    for(const [a,b,length] of bones) assert.ok(Math.abs(Math.hypot(pose[a].x-pose[b].x,pose[a].y-pose[b].y)-length)<1e-6,e.id+' changing bone length');
+    for(const [key,point] of Object.entries(pose)) if(typeof point==='object') {
+      assert.ok(point.x>=0&&point.x<=100&&point.y>=0&&point.y<=100,e.id+' outside canvas');
+      assert.ok(Math.hypot(point.x-prev[key].x,point.y-prev[key].y)<2,e.id+' discontinuous joint');
     }
+    prev=pose;
   }
 }
 (async()=>{
