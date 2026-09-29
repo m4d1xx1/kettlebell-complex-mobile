@@ -1,11 +1,11 @@
-import { rigBody, blendRig } from './bodyRig';
+import { rigBody, createRigTrack, RigTrack, sampleRigTrack } from './bodyRig';
 import { ExerciseVisual } from '../types';
 
 export type Point = { x: number; y: number };
 export type Joint = 'head' | 'shoulder' | 'hip' | 'leftElbow' | 'rightElbow' | 'leftHand' | 'rightHand' | 'leftKnee' | 'rightKnee' | 'leftFoot' | 'rightFoot';
 export type Pose = Record<Joint, Point> & { bellAngle: number; bellDepth: number };
 export type Muscle = 'Glutes' | 'Hamstrings' | 'Quads' | 'Calves' | 'Core' | 'Obliques' | 'Chest' | 'Upper back' | 'Lats' | 'Shoulders' | 'Biceps' | 'Triceps' | 'Forearms' | 'Hip flexors';
-export type Frame = { at: number; pose: Pose };
+export type Frame = { at: number; pose: Pose; settle?: boolean };
 export type Motion = { frames: Frame[]; duration: number; muscles: Muscle[]; equipment: 'kettlebell' | 'bodyweight'; hold?: boolean; stance?: 'wide-straight' | 'squat' };
 const pt = (x: number, y: number): Point => ({ x, y });
 const stand: Pose = {
@@ -43,6 +43,8 @@ const squat = (base: Pose): Pose => pose(move(base, 0, 17), {
   hip: pt(44, 79), leftKnee: pt(26, 77), rightKnee: pt(65, 77), leftFoot: stand.leftFoot, rightFoot: stand.rightFoot
 });
 const dip = pose(move(rack, 0, 5), { leftKnee: pt(36, 78), rightKnee: pt(59, 78), leftFoot: stand.leftFoot, rightFoot: stand.rightFoot });
+// Begin the press while the legs are still extending, rather than stopping in rack.
+const thrusterDrive = pose(dip, { rightElbow: pt(54, 36), rightHand: pt(54, 21), bellAngle: -40 });
 const lunge = (base: Pose): Pose => pose(move(base, -7, 10), {
   hip: pt(39, 69), leftKnee: pt(26, 72), rightKnee: pt(58, 88), leftFoot: pt(27, 90), rightFoot: pt(76, 90)
 });
@@ -111,7 +113,7 @@ export const EXERCISE_MOTIONS: Record<string, Motion> = {
   'goblet-squat': kb([goblet, squat(goblet), squat(goblet), goblet], squatMuscles, 3600),
   'front-squat': kb([rack, squat(rack), squat(rack), rack], squatMuscles, 3600),
   'reverse-lunge': kb([lungeStart, lunge(lungeStart), lunge(lungeStart), lungeStart], squatMuscles, 3600),
-  'thruster': kb([rack, squat(rack), rack, overhead, overhead, rack], [...squatMuscles, 'Shoulders', 'Triceps'], 3600),
+  'thruster': kb([rack, squat(rack), thrusterDrive, overhead, overhead, rack], [...squatMuscles, 'Shoulders', 'Triceps'], 3600),
   'halo': kb([haloFront, haloLeft, haloBack, haloRight, haloFront], ['Shoulders', 'Upper back', 'Core'], 4200),
   'around-the-world': kb([aroundFront, aroundRight, aroundBack, aroundLeft, aroundFront], ['Core', 'Forearms', 'Shoulders'], 4200),
   'suitcase-hold': kb([stand, stand], ['Obliques', 'Forearms'], 2400, true),
@@ -131,6 +133,39 @@ export const EXERCISE_MOTIONS: Record<string, Motion> = {
   'bodyweight-reverse-lunge': bw([pose(lungeStart, { rightHand: pt(62, 63), rightElbow: pt(59, 48), bellAngle: 0 }), lunge(airStand), pose(lungeStart, { rightHand: pt(62, 63), rightElbow: pt(59, 48), bellAngle: 0 }), pose(lunge(airStand), { leftKnee: pt(58, 88), rightKnee: pt(26, 72), leftFoot: pt(76, 90), rightFoot: pt(27, 90) }), pose(lungeStart, { rightHand: pt(62, 63), rightElbow: pt(59, 48), bellAngle: 0 })], squatMuscles, 5200)
 };
 
+// Give effort, controlled return and brief technique checkpoints their own time.
+// Duplicated poses intentionally hold; transit poses now share continuous velocity.
+const phaseTimes: Record<string, number[]> = {
+  'swing': [0, 0.13, 0.34, 0.40, 0.64, 1],
+  'single-arm-swing': [0, 0.13, 0.34, 0.40, 0.64, 1],
+  'clean': [0, 0.17, 0.30, 0.40, 0.53, 0.73, 1],
+  'snatch': [0, 0.13, 0.25, 0.40, 0.53, 0.67, 0.78, 1],
+  'high-pull': [0, 0.19, 0.42, 0.66, 1],
+  'strict-press': [0, 0.38, 0.51, 1],
+  'push-press': [0, 0.16, 0.42, 0.52, 1],
+  'clean-and-press': [0, 0.10, 0.18, 0.26, 0.32, 0.51, 0.61, 0.79, 0.87, 1],
+  'row': [0, 0.34, 0.49, 1],
+  'deadlift': [0, 0.36, 0.47, 1],
+  'romanian-deadlift': [0, 0.52, 0.60, 1],
+  'goblet-squat': [0, 0.46, 0.53, 1],
+  'front-squat': [0, 0.46, 0.53, 1],
+  'reverse-lunge': [0, 0.45, 0.53, 1],
+  'thruster': [0, 0.29, 0.46, 0.66, 0.75, 1],
+  'floor-press': [0, 0.36, 0.49, 1],
+  'windmill': [0, 0.48, 0.59, 1],
+  'air-squat': [0, 0.46, 0.53, 1],
+  'push-up': [0, 0.45, 0.53, 1],
+  'glute-bridge': [0, 0.35, 0.57, 1],
+  'burpee': [0, 0.12, 0.25, 0.38, 0.49, 0.64, 0.76, 0.88, 1]
+};
+for (const [id, times] of Object.entries(phaseTimes)) {
+  EXERCISE_MOTIONS[id].frames = EXERCISE_MOTIONS[id].frames.map((frame, i) => ({ ...frame, at: times[i] }));
+}
+
+// Settle the supported plank before/after the push-up. Carrying transit velocity
+// through these two contact changes pushes the hands below their existing floor path.
+for (const index of [2, 4]) EXERCISE_MOTIONS.burpee.frames[index].settle = true;
+
 EXERCISE_MOTIONS.windmill.stance = 'wide-straight';
 for (const id of ['goblet-squat','front-squat','air-squat','thruster']) EXERCISE_MOTIONS[id].stance = 'squat';
 
@@ -146,15 +181,15 @@ export function getMotion(exerciseId: string | undefined, visual: ExerciseVisual
   return exerciseId ? { ...motion, equipment, muscles: [] } : { ...motion, equipment };
 }
 
-const rigCache = new WeakMap<Motion, Frame[]>();
+const rigCache = new WeakMap<Motion, RigTrack>();
 export function samplePose(motion: Motion, progress: number): Pose {
-  let frames = rigCache.get(motion);
-  if (!frames) { frames = motion.frames.map(frame => ({ ...frame, pose: rigBody(frame.pose, motion.stance) })); rigCache.set(motion, frames); }
-  const p = Math.max(0, Math.min(1, progress));
-  const next = frames.findIndex(frame => frame.at > p);
-  const i = next < 0 ? frames.length - 2 : Math.max(0, next - 1);
-  const a = frames[i], b = frames[i + 1];
-  const linear = (p - a.at) / (b.at - a.at);
-  const t = linear * linear * (3 - 2 * linear);
-  return blendRig(a.pose, b.pose, t);
+  let track = rigCache.get(motion);
+  if (!track) {
+    track = createRigTrack(motion.frames.map(frame => ({ ...frame, pose: rigBody(frame.pose, motion.stance) })));
+    rigCache.set(motion, track);
+  }
+  // Static holds must stay frozen, including in previews and with Reduce Motion.
+  if (motion.hold) return track.start;
+  const p = Number.isNaN(progress) ? 0 : Math.max(0, Math.min(1, progress));
+  return sampleRigTrack(track, p);
 }

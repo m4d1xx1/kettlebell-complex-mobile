@@ -4,6 +4,72 @@ Last updated: 2026-09-29
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
 
+## Latest handover — templates and animation flow (2026-09-29)
+
+Source verified before editing: GitHub `main` at
+`b3c838c0d92a334e5a17fd3ffc42a83e8e0b2089`.
+The user requested better templates, including bodyweight, plus smoother and
+more polished exercise animations. This section supersedes earlier template doses
+and animation implementation notes.
+
+- The catalogue now has 22 curated templates: 11 kettlebell and 11 bodyweight.
+  All nine previous preset IDs remain supported. Each template has explicit rounds,
+  rest, reps/time, side targets, level, focus, description and coaching. Beginner
+  options include a short first session, no-overhead kettlebell work, no-jump
+  bodyweight work and floor/standing options. No new dependencies.
+- `TemplatePicker.tsx` starts collapsed and uses vertical equipment, experience
+  and template dropdowns. Preview shows the complete dose and estimated duration
+  from the same plan/session calculations used when loading. Exercise rows open
+  existing technique details. Preview leaves the draft untouched; replacing a
+  non-empty builder requires confirmation. Profile defaults and saved plans remain intact.
+- Bodyweight templates load at zero external weight. **Bodyweight Basics** is now
+  2 rounds / 60s rest: Air Squat 8, Reverse Lunge 8 total alternating legs,
+  Push-Up 4, Glute Bridge 10 and Plank 20s. For the short phone test, set rounds to 1.
+  Adding the first kettlebell to a zero-load bodyweight plan restores the profile
+  weight, including checkbox/custom exercise paths. Existing mixed/loaded plans
+  retain manually chosen weights. Provider regression tests cover these transitions.
+- Shared figure graphics now have depth gradients, rim highlights, a rounded bell
+  and handle, defined feet, a soft height-sensitive floor shadow and a faint backdrop.
+  Small icons keep simpler body shading. Bodyweight remains cyan with no bell;
+  kettlebells stay lime and muscle focus stays coral red.
+  SVG viewport padding prevents overhead kettlebell handles from being clipped.
+- Playback targets up to 60 Hz for large figures and 30 Hz for smaller previews.
+  This is a render scheduling target, not measured native performance.
+  Pause/resume, static holds, reduced motion and side presentation remain supported.
+- All 32 motions use cached continuous joint-angle interpolation while preserving
+  bone lengths. 21 movement profiles have refined phase timing; thruster now starts
+  the press during leg extension. Burpee support transitions settle smoothly to
+  avoid an interpolated hand-depth regression. Static holds remain still.
+- Local validation passed: TypeScript, core and integration suites, all 22 templates
+  through the session engine, and 32,032 motion samples including velocity joins,
+  scalar bounds, fixed bones and static holds. Expo iOS export passed (1,776 modules).
+  Both new suites are in GitHub Actions. These checks are not native device tests.
+- Rendered contact sheets cover all 32 movements. A 9.6s, 25fps GIF shows swing,
+  deadlift, push-up and burpee using the actual component and motion timing.
+  It is a code render, not a phone recording. No hosted Expo tunnel is active.
+- Remaining review: actual iPhone performance/layout, exercise technique and contact
+  alignment. Existing planar-rig limits include horizontal foot movement in squats
+  and imperfect hand-floor contact in mountain climber/burpee. Do not describe
+  the animation as physically validated or every contact as fixed.
+
+First files for further work: `src/data/presets.ts`,
+`src/components/TemplatePicker.tsx`, `src/context/WorkoutContext.tsx`,
+`src/animation/exercisePoses.ts`, `src/animation/bodyRig.ts` and
+`src/components/PoseExerciseFigure.tsx`. The visual rules are saved in
+`ANIMATION_STYLE.md`.
+
+### Windows test setup troubleshooting from this session
+
+- The user's PC was still on `0e20100`: `git pull` had aborted because local
+  `package.json` edits would be overwritten. `.gitignore`, `expo-env.d.ts` and an
+  untracked `package-lock.json` were also present. We supplied a stash-before-pull
+  PowerShell block with exit checks; do not delete these local edits or auto-pop
+  the backup over the new dependency definitions.
+- Next screenshot reached Expo startup but the global ngrok install was not resolved.
+  Suggested local tooling install: `npm install --no-save --package-lock=false
+  "@expo/ngrok@^4.1.0"`, then `npx expo start --tunnel --go -c`.
+  The user has not yet confirmed the phone launched successfully.
+
 ## Latest handover — DAYBRAVE working name (2026-09-29)
 
 - Source verified before editing: GitHub `main` at
@@ -31,8 +97,8 @@ Authoritative branch: `main`
   and no physical-device test has occurred. The failed tunnel is no longer running.
 - Reproducible first phone test: launch current main with `npx expo start --tunnel --go`
   on the user's Windows PC, open it in Expo Go, choose **Bodyweight Basics** in
-  **Workout templates**, then set **Rounds** to **1**. This uses the actual preset
-  (Air Squat 12, Push-Up 8, Bodyweight Reverse Lunge 10, Glute Bridge 12, Plank 30 s).
+  **Workout templates**, then set **Rounds** to **1**. The preset doses were revised
+  later in this session; use the current template and the latest handover above.
   Test animations, pause/resume, rep entry, summary, image saving and native sharing.
   This is a functional demo configuration, not a newly added training program.
 - Validation passed: TypeScript, core regression tests, provider/lifecycle integration
@@ -432,18 +498,13 @@ Important logic:
 
 Current preset system is data-driven via `src/data/presets.ts`.
 
-Current presets:
-- C·P·S — Clean · Press · Squat
-- Simple 5
-- Swing 20
-- KB Strength
-- KB Engine
-- Legs + Core
-- BW Basics
-- BW HIIT
-- BW Core
+There are 22 current presets, split evenly between kettlebell and bodyweight.
+The nine original IDs remain available with updated doses; 13 new templates add
+short beginner sessions, standing/floor choices and more focused strength work.
+Use `src/data/presets.ts` for current names and exact prescriptions.
 
-Workout templates are selected through a vertical dropdown; there is no horizontal preset bar.
+Workout templates use vertical equipment, experience and template dropdowns,
+followed by a preview and explicit load action. There is no horizontal preset bar.
 
 Future goal:
 - build toward roughly 30–50 quality launch templates

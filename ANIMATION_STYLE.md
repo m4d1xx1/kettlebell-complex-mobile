@@ -1,37 +1,50 @@
-# Approved exercise animation style
+# DAYBRAVE exercise animation style
 
-Approved by the user: 2026-09-29.
-
-Use this style for every built-in exercise and every future exercise added to
-this project. The user approved the filled, tapered SVG figures shown in the
-four-exercise preview, including the coral muscle highlights.
+The filled silhouette, coral muscle zones and equipment colors were approved on
+2026-09-29. The same day, the user requested smoother flow and improved graphics
+across both kettlebell and bodyweight exercises. This document describes the
+current implementation; earlier forearm-only rig notes are superseded.
 
 ## Visual rules
 
-- Filled athletic silhouettes with tapered limbs, a connected neck and a solid head.
-- Lower-opacity far-side limbs indicate depth only.
-- Coral red `#E96B73` marks schematic muscle focus; it is not a measurement of activation.
-- Bodyweight figures remain cyan `#55C7FF`; no kettlebell is drawn.
-- Loaded exercises use light body silhouettes and a lime `#B8F23B` kettlebell.
-- Keep the shaded kettlebell, visible handle, hand connection and subtle floor shadow.
-- Preserve readability at icon size and in the fullscreen workout view.
-- Keep English-only labels, the muscle-focus legend and the existing workout/share flow.
+- Filled, tapered silhouettes with a connected neck and recognizable limbs.
+- Cyan `#55C7FF` bodyweight; light loaded figures and lime `#B8F23B` kettlebells.
+- Coral `#E96B73` marks schematic muscle focus, never measured activation.
+- Large figures use soft surface gradients, restrained rim highlights and a subtle
+  accent backdrop. Small figures keep simpler flat body fills for readability.
+- Far-side limbs are dimmer to communicate depth. Muscle color still means focus.
+- Kettlebells have a rounded body, shaped handle, highlight and darker underside.
+  The handle follows the hand; front/back transitions cross-fade through depth.
+- Feet have a defined shape; the floor has a soft, height-sensitive contact shadow.
+- The SVG viewport has two units of padding so overhead bell handles are not clipped.
+- Avoid decorative particles, motion blur and trails that obscure movement technique.
+- Preserve the fullscreen runner, English labels, bodyweight summaries and share cards.
 
-## Movement rules
+## Motion rules
 
-- Resolve movements by exercise ID, including variants that previously shared a glyph.
-- Use joint-based poses with smooth transitions and continuous loop endpoints.
-- Keep static holds static. Reset the motion when changing exercises.
-- Preserve exercise-specific sequencing, such as clean, rack, press and return.
-- Give every new built-in exercise its own entry in `EXERCISE_MOTIONS`.
-- Custom exercises need an explicit movement/muscle mapping before receiving specific highlights.
+- All 32 exercises resolve by exercise ID to their own authored sequence.
+- Fixed planar bone lengths: upper arm 16, forearm 15.5, thigh/shin 18, torso 24,
+  neck 10, in viewBox units. IK converts authored poses into cached rig tracks.
+- Monotone cubic interpolation of root position and joint angles carries velocity
+  through transit poses without overshooting the authored scalar endpoints.
+- Effort, controlled return and brief checkpoints have exercise-specific timings.
+  Static holds remain static; a deliberate repeated pose creates a true hold.
+- Preserve continuous loop endpoints and floor/jump height. This remains a stylized
+  2-D demonstration; physical contacts and technique need qualified human review.
+- Large animated figures target up to 60 updates/second using requestAnimationFrame;
+  small previews target 30. Actual phone frame rate has not been measured.
+- Pause retains the current pose; resume continues it. Changing exercise/side resets
+  the cycle. Left is mirrored; alternating sides switch per completed cycle.
+- Respect the operating system Reduce Motion setting and cancel frames on unmount.
+- Custom exercises use a generic visual with no unverified muscle highlights.
 
 ## Implementation
 
-- `src/animation/exercisePoses.ts`: movement profiles, timing and muscle focus.
-- `src/components/PoseExerciseFigure.tsx`: shared figure, colors and muscle rendering.
-- `src/components/ExerciseGlyph.tsx`: shared wrapper for all app views.
-- Builder, library, exercise detail and fullscreen workout all pass the exercise ID.
+- `src/animation/exercisePoses.ts`: authored poses, timing, equipment and muscle focus.
+- `src/animation/bodyRig.ts`: fixed-length IK and cached continuous interpolation.
+- `src/components/PoseExerciseFigure.tsx`: playback, figure surfaces, bell and shadow.
+- `src/components/ExerciseGlyph.tsx`: equipment colors and shared wrapper.
+- Builder, library, detail and fullscreen workout all pass the exercise ID.
 
 ## Coverage
 
@@ -70,52 +83,13 @@ All 32 built-in exercises are mapped: 23 loaded and 9 bodyweight.
 - High Knees (`high-knees`)
 - Bodyweight Reverse Lunge (`bodyweight-reverse-lunge`)
 
-## Verification and pending work
+## Verification
 
-TypeScript and Expo iOS export passed for the implementation. Four poses per
-exercise were visually reviewed, with loop/equipment/coordinate checks across
-3,232 samples. Physical-device appearance and performance still need review.
-These changes and this approval record are committed locally. GitHub upload
-remains pending authenticated write access; do not assume main contains them.
-
-## Runtime behavior (2026-09-29)
-
-- Pausing retains the current animation pose; resuming continues it.
-- Workout side is passed to the figure; left is mirrored, alternating sides switch per cycle.
-- Respect the operating system Reduce Motion setting.
-- Keep the approved authored keyframes. A global fixed-length IK projection was tested
-  and rejected because it bent lockouts and distorted floor exercises. A future rig
-  must be reviewed exercise by exercise before replacing these poses.
-
-## Audit corrections (2026-09-29)
-
-`armRig.ts` stabilizes the projected forearms at 15.5 viewBox units and preserves
-wrist targets. It is applied to all built-in and fallback motions. It is a limited
-projection correction, not a full anatomical skeleton; upper arms, legs and trunk
-still depend on authored keyframes. A two-bone fixed arm solver was visually rejected
-because it bent ballistic/overhead lockouts. A full rig remains outstanding.
-
-Muscle patches now separate opposing groups using distinct narrow regions rather
-than sharing one patch for biceps/triceps or quads/hamstrings. Hip flexors have a
-short proximal zone; chest, upper back and lats are separate. Keep the approved red
-shade, filled silhouettes, equipment colors and floor shadow. These zones remain
-schematic. Do not claim medically accurate activation or verified exercise coaching.
-
-QA: 3,232 sampled poses passed constant-forearm/floor checks; four rendered poses
-per built-in exercise were inspected. Physical-phone and qualified technique reviews
-remain outstanding.
-
-## Full planar rig update (supersedes the forearm-only correction)
-
-`bodyRig.ts` now drives all 32 motions with common fixed lengths for upper arms (16),
-forearms (15.5), thighs/shins (18 each), torso (24) and neck (10) in viewBox units.
-Authored poses are converted to IK keyframes; angle interpolation keeps segment
-lengths fixed between poses and removes discrete branch flips. The rigged keyframes
-are cached per motion. Stance rules handle wide windmills and centered squats.
-The lowest foot follows the authored floor/jump height. Styling and color mappings
-remain unchanged.
-
-Tests sample 1,001 poses per exercise for lengths, bounds and discontinuities.
-Rendered contact sheets and a four-movement GIF were reviewed. This is a stylized
-planar rig; projected contacts and exercise technique still require human review.
-It does not establish medically correct anatomy or exercise instruction.
+- Existing core checks sample 1,001 frames per exercise for bone lengths, bounds
+  and positional continuity.
+- `scripts/test-motion-flow.cjs` checks keyframe/loop velocities, transit movement,
+  holds, scalar bounds and compatibility with the fixed-length rig.
+- Rendered SVG contact sheets cover every built-in movement; these are code renders,
+  not native-phone recordings or proof of medical/technique accuracy.
+- Physical iPhone performance, large-font layouts and qualified movement review
+  remain open before release. See PROJECT_HANDOFF.md for published validation status.

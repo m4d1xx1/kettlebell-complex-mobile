@@ -6,11 +6,10 @@ import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { Dropdown } from '../src/components/Dropdown';
+import { TemplatePicker } from '../src/components/TemplatePicker';
 import { BrandMark } from '../src/components/BrandMark';
 import { ExerciseGlyph } from '../src/components/ExerciseGlyph';
 import { NumberStepper } from '../src/components/NumberStepper';
-import { PRESETS } from '../src/data/presets';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
@@ -23,7 +22,7 @@ import { formatDuration } from '../src/utils/format';
 export default function BuilderScreen() {
   const {
     hydrated, plan, setPlan, exercises, reorderItems, removeItem, updateItem,
-    loadPreset, saveCurrent, settings, applyProfileDefaults
+    saveCurrent, settings, applyProfileDefaults
   } = useWorkout();
   const { t, language } = useI18n();
   const stats = useMemo(() => calculatePlanStats(plan, exercises), [plan, exercises]);
@@ -124,7 +123,7 @@ export default function BuilderScreen() {
           <ResumeWorkoutNotice/>
           <UndoNotice/>
           <QuickStart/>
-          <Dropdown label="Workout templates" placeholder="Choose a template" options={PRESETS.map(preset => ({ value: preset.id, label: preset.name, color: preset.id.startsWith('bodyweight-') ? colors.bodyweight : colors.accent }))} onChange={id => { const preset = PRESETS.find(item => item.id === id); if (preset) loadPreset(preset.id); }}/>
+          <TemplatePicker/>
           <Pressable accessibilityRole="button" style={styles.preset} onPress={() => router.push('/saved')}><Text style={styles.presetText}>{t('saved')}</Text></Pressable>
 
           <View style={styles.sectionHeader}>
@@ -199,12 +198,8 @@ const styles = StyleSheet.create({
   iconTopButton: { width: 44, height: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   iconTopText: { color: colors.text, fontSize: 18, fontWeight: '800' },
   topButtonText: { color: colors.text, fontWeight: '800' },
-  presetScroller: { flexGrow: 0 },
-  presetRow: { flexDirection: 'row', gap: 8, paddingRight: 8 },
   preset: { paddingHorizontal: 13, minHeight: 40, borderRadius: 20, backgroundColor: colors.panel, justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   presetText: { color: colors.text, fontSize: 13, fontWeight: '800' },
-  bodyweightPreset: { borderColor: colors.bodyweight, backgroundColor: colors.bodyweightSoft },
-  bodyweightPresetText: { color: colors.bodyweight },
   bodyweightText: { color: colors.bodyweight },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },

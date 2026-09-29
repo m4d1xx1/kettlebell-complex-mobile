@@ -10,10 +10,11 @@ incomplete. `main` and `PROJECT_HANDOFF.md` are the source of truth for project 
 
 ## Current app
 
-- Quick workouts, custom plans, saved workouts and nine built-in templates.
+- Quick workouts, custom plans, saved workouts and 22 built-in templates (11 kettlebell and 11 bodyweight).
 - Vertical equipment/category dropdowns, exercise checkboxes, technique details
   and explained exercise pairings. Drag to reorder; no reorder arrows.
-- Joint-based SVG animations for all 32 built-in movements, with coral muscle zones.
+- Joint-based SVG animations for all 32 movements, with continuous motion, shaded
+  figures/equipment and coral muscle zones.
 - Cyan bodyweight and lime kettlebell styling in the existing dark layout.
 - Fullscreen execution with reps/timers, side handling, countdowns, optional manual
   continuation after rest, sound, voice cues and haptics.
@@ -44,11 +45,12 @@ there is no active hosted demo link.
 ### Short functional demo
 
 1. Finish onboarding if prompted.
-2. Choose **Workout templates → Bodyweight Basics**. Save any current draft first
-   if you want to keep it.
+2. Open **Workout templates**, set **Equipment** to **Bodyweight**, and preview
+   **Bodyweight Basics**. Tap **Use this template**. Save any current draft first
+   if you want to keep it; replacing the builder plan requires confirmation.
 3. Set **Rounds** to **1** and review the workout before starting.
-4. Run Air Squat (12), Push-Up (8), Bodyweight Reverse Lunge (10), Glute Bridge (12),
-   and Plank (30 seconds).
+4. Run Air Squat (8), Bodyweight Reverse Lunge (8 total, alternating legs), Push-Up (4),
+   Glute Bridge (10), and Plank (20 seconds).
 5. Check animations, pause/resume, actual rep entry, summary and history.
 6. Try **Save image** and **Share image** from the completed workout.
 
@@ -61,6 +63,8 @@ needs user validation; local checks and rendered previews are not device tests.
 npm run typecheck
 npm run test:core
 npm run test:integration
+npm run test:templates
+npm run test:motion
 npx expo install --check
 npx expo-doctor@latest
 ```

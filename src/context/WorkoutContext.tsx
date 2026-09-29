@@ -3,7 +3,7 @@ import { archiveAndReset, readStored, writeStored, updateStored } from '../stora
 import { validPlan, validSaved, validHistory, validExercises, validSettings, strings } from '../storage/validation';
 import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { BASE_EXERCISES } from '../data/exercises';
-import { PRESETS, PresetId } from '../data/presets';
+import { PRESETS, PresetId, createPresetPlan } from '../data/presets';
 import {
   AppSettings, ComplexItem, ExerciseCategory, ExerciseDefinition, ExerciseMode,
   ExerciseVisual, SavedComplex, SideMode, WorkoutHistoryEntry, WorkoutPlan
@@ -151,8 +151,21 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     if (hydrated && validPlan(plan)) void persist(PLAN_KEY, plan);
   }, [hydrated, plan]);
 
+  const appendExercise = (p: WorkoutPlan, exerciseId: string, catalog = exercises): WorkoutPlan => {
+    const exercise = catalog.find(entry => entry.id === exerciseId);
+    // Bodyweight templates have no load. Restore the profile load only as the
+    // first kettlebell enters; an existing kettlebell plan may intentionally use 0.
+    const firstKettlebell = p.weightKg === 0 && exercise?.equipment !== 'bodyweight'
+      && p.items.every(item => catalog.find(entry => entry.id === item.exerciseId)?.equipment === 'bodyweight');
+    return {
+      ...p,
+      weightKg: firstKettlebell ? settings.defaultWeightKg : p.weightKg,
+      items: [...p.items, makeItem(catalog, exerciseId)]
+    };
+  };
+
   const addExercise = (exerciseId: string) =>
-    setPlan((p) => ({ ...p, items: [...p.items, makeItem(exercises, exerciseId)] }));
+    setPlan((p) => appendExercise(p, exerciseId));
 
   const rememberRemoval = (p: WorkoutPlan, matches: (item: ComplexItem) => boolean) => {
     removed.current = { name: p.name, entries: p.items.flatMap((item, index) => matches(item) ? [{ item, index }] : []) };
@@ -162,7 +175,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     if (!exercises.some(exercise => exercise.id === exerciseId)) return;
     setPlan(p => p.items.some(item => item.exerciseId === exerciseId)
       ? rememberRemoval(p, item => item.exerciseId === exerciseId)
-      : { ...p, items: [...p.items, makeItem(exercises, exerciseId)] });
+      : appendExercise(p, exerciseId));
   };
   const removeItem = (key: string) => setPlan(p => rememberRemoval(p, item => item.key === key));
   const dismissUndo = () => { removed.current = null; setPlan(p => ({ ...p })); };
@@ -216,27 +229,12 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     try { setSaved(await updateStored(SAVED_KEY, [], validSaved, current => current.map(x => x.id === id ? { ...x, favorite: !x.favorite } : x))); } catch (error) { notifyStorage(error); }
   };
 
-  const profile = () => ({
-    weightKg: settings.defaultWeightKg,
-    rounds: settings.defaultRounds,
-    restSeconds: settings.defaultRestSeconds
-  });
-
   const loadPreset = (preset: PresetId) => {
     const definition = PRESETS.find((x) => x.id === preset);
     if (!definition) return;
 
     removed.current = null;
-    const defaults = profile();
-    setPlan({
-      name: definition.name,
-      weightKg: defaults.weightKg,
-      rounds: definition.rounds ?? defaults.rounds,
-      restSeconds: definition.restSeconds ?? defaults.restSeconds,
-      items: definition.items.map((item) =>
-        makeItem(exercises, item.exerciseId, item.value, item.mode, item.side)
-      )
-    });
+    setPlan(createPresetPlan(definition, settings.defaultWeightKg, makeKey));
   };
 
   const applyProfileDefaults = () =>
@@ -267,7 +265,7 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
     };
     try { setCustomExercises(await updateStored(CUSTOM_KEY, [], validExercises, current => [...current, exercise])); }
     catch (error) { notifyStorage(error); return false; }
-    setPlan((p) => ({ ...p, items: [...p.items, makeItem([...exercises, exercise], exercise.id)] }));
+    setPlan((p) => appendExercise(p, exercise.id, [...exercises, exercise]));
     return true;
   };
 

@@ -28,3 +28,7 @@ jobs:
         run: npm run test:core
       - name: Storage and lifecycle integration tests
         run: npm run test:integration
+      - name: Template catalogue and loading
+        run: npm run test:templates
+      - name: Animation flow and rig continuity
+        run: npm run test:motion

@@ -69,28 +69,98 @@ export function rigBody(raw:Pose, stance?: 'wide-straight' | 'squat'):Pose {
   return out;
 }
 
-const angle=(a:Point,b:Point)=>Math.atan2(b.y-a.y,b.x-a.x);
-const blendAngle=(a:number,b:number,t:number)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
-const blendPoint=(a:Point,b:Point,t:number):Point=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
-function bone(root:Point,a:number,b:number,t:number,length:number):Point {
-  const theta=blendAngle(a,b,t);
-  return {x:root.x+Math.cos(theta)*length,y:root.y+Math.sin(theta)*length};
+const angle = (a: Point, b: Point) => Math.atan2(b.y - a.y, b.x - a.x);
+const shortestAngle = (radians: number) => Math.atan2(Math.sin(radians), Math.cos(radians));
+const jointBones = [
+  ['hip', 'shoulder', BONES.torso], ['shoulder', 'head', BONES.neck],
+  ['hip', 'leftKnee', BONES.thigh], ['leftKnee', 'leftFoot', BONES.shin],
+  ['hip', 'rightKnee', BONES.thigh], ['rightKnee', 'rightFoot', BONES.shin],
+  ['shoulder', 'leftElbow', BONES.upperArm], ['leftElbow', 'leftHand', BONES.forearm],
+  ['shoulder', 'rightElbow', BONES.upperArm], ['rightElbow', 'rightHand', BONES.forearm]
+] as const;
+const joints = ['hip', 'shoulder', 'head', 'leftKnee', 'rightKnee', 'leftFoot', 'rightFoot', 'leftElbow', 'rightElbow', 'leftHand', 'rightHand'] as const;
+// Hip x/y, floor height, equipment rotation/depth, then each fixed-length bone angle.
+type RigFrame = { at: number; values: number[]; velocity: number[] };
+export type RigTrack = { frames: RigFrame[]; start: Pose };
+const valuesOf = (p: Pose): number[] => [
+  p.hip.x, p.hip.y, Math.max(p.leftFoot.y, p.rightFoot.y), p.bellAngle, p.bellDepth,
+  ...jointBones.map(([root, end]) => angle(p[root], p[end]))
+];
+
+/** A monotone cubic tangent: flowing transit, zero velocity at reversals and holds.
+ * Weighted harmonic means keep every scalar between its authored endpoints. Unlike
+ * an unconstrained Catmull-Rom spline, this cannot overshoot an elbow/leg angle.
+ */
+function tangent(before: number, after: number, beforeTime: number, afterTime: number): number {
+  if (before * after <= 0) return 0;
+  const a = 2 * afterTime + beforeTime, b = afterTime + 2 * beforeTime;
+  return (a + b) / (a / before + b / after);
 }
-/** Interpolate joint angles, never shrink bones or flip IK branches between frames. */
-export function blendRig(a:Pose,b:Pose,t:number):Pose {
-  const out:Pose={...a,hip:blendPoint(a.hip,b.hip,t),bellAngle:a.bellAngle+(b.bellAngle-a.bellAngle)*t,bellDepth:a.bellDepth+(b.bellDepth-a.bellDepth)*t};
-  out.shoulder=bone(out.hip,angle(a.hip,a.shoulder),angle(b.hip,b.shoulder),t,BONES.torso);
-  out.head=bone(out.shoulder,angle(a.shoulder,a.head),angle(b.shoulder,b.head),t,BONES.neck);
-  for(const side of ['left','right'] as const){
-    const knee=`${side}Knee` as const,foot=`${side}Foot` as const,elbow=`${side}Elbow` as const,hand=`${side}Hand` as const;
-    out[knee]=bone(out.hip,angle(a.hip,a[knee]),angle(b.hip,b[knee]),t,BONES.thigh);
-    out[foot]=bone(out[knee],angle(a[knee],a[foot]),angle(b[knee],b[foot]),t,BONES.shin);
-    out[elbow]=bone(out.shoulder,angle(a.shoulder,a[elbow]),angle(b.shoulder,b[elbow]),t,BONES.upperArm);
-    out[hand]=bone(out[elbow],angle(a[elbow],a[hand]),angle(b[elbow],b[hand]),t,BONES.forearm);
+
+/** Compile once per motion, including periodic endpoint velocities. */
+export function createRigTrack(poses: { at: number; pose: Pose; settle?: boolean }[]): RigTrack {
+  const frames: RigFrame[] = poses.map(({ at, pose }) => ({ at, values: valuesOf(pose), velocity: [] }));
+  for (let i = 1; i < frames.length; i++) {
+    for (let channel = 5; channel < frames[i].values.length; channel++) {
+      const previous = frames[i - 1].values[channel];
+      frames[i].values[channel] = previous + shortestAngle(frames[i].values[channel] - previous);
+    }
   }
-  // Keep the lowest foot at the authored floor/jump height across the entire cycle.
-  const floor=Math.max(a.leftFoot.y,a.rightFoot.y)+(Math.max(b.leftFoot.y,b.rightFoot.y)-Math.max(a.leftFoot.y,a.rightFoot.y))*t;
-  const dy=floor-Math.max(out.leftFoot.y,out.rightFoot.y);
-  for(const key of ['hip','shoulder','head','leftKnee','rightKnee','leftFoot','rightFoot','leftElbow','rightElbow','leftHand','rightHand'] as const) out[key]={x:out[key].x,y:out[key].y+dy};
+  const last = frames.length - 1;
+  const closed = joints.every(key => distance(poses[0].pose[key], poses[last].pose[key]) < 1e-6);
+  for (let i = 0; i <= last; i++) {
+    const before = i === 0 ? last - 1 : i - 1;
+    const after = i === last ? 1 : i + 1;
+    const beforeTime = i === 0 ? frames[last].at - frames[before].at : frames[i].at - frames[before].at;
+    const afterTime = i === last ? frames[after].at - frames[0].at : frames[after].at - frames[i].at;
+    frames[i].velocity = frames[i].values.map((value, channel) => {
+      if (poses[i].settle) return 0;
+      if (!closed && (i === 0 || i === last)) return 0;
+      const incoming = ((i === 0 ? frames[last].values[channel] : value) - frames[before].values[channel]) / beforeTime;
+      const outgoing = (frames[after].values[channel] - (i === last ? frames[0].values[channel] : value)) / afterTime;
+      return tangent(incoming, outgoing, beforeTime, afterTime);
+    });
+  }
+  // Where both feet meet the support plane, match their vertical velocities.
+  // Otherwise choosing the lowest foot would introduce a visible whole-body snap
+  // when support changes (notably the crouch/plank transitions in a burpee).
+  // Only reduce existing monotone tangents; never add an angular overshoot.
+  for (let i = 0; i <= last; i++) {
+    if (Math.abs(poses[i].pose.leftFoot.y - poses[i].pose.rightFoot.y) > 1e-6) continue;
+    const frame = frames[i];
+    const left = BONES.thigh * Math.cos(frame.values[7]) * frame.velocity[7]
+      + BONES.shin * Math.cos(frame.values[8]) * frame.velocity[8];
+    const right = BONES.thigh * Math.cos(frame.values[9]) * frame.velocity[9]
+      + BONES.shin * Math.cos(frame.values[10]) * frame.velocity[10];
+    if (Math.abs(left - right) < 1e-7) continue;
+    const shared = left * right > 0 ? Math.sign(left) * Math.min(Math.abs(left), Math.abs(right)) : 0;
+    for (const channel of [7, 8]) frame.velocity[channel] *= Math.abs(left) > 1e-9 ? shared / left : 0;
+    for (const channel of [9, 10]) frame.velocity[channel] *= Math.abs(right) > 1e-9 ? shared / right : 0;
+  }
+  return { frames, start: poses[0].pose };
+}
+
+function cubic(a: number, b: number, va: number, vb: number, t: number, duration: number): number {
+  const t2 = t * t, t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * a + (t3 - 2 * t2 + t) * duration * va
+    + (-2 * t3 + 3 * t2) * b + (t3 - t2) * duration * vb;
+}
+
+/** Shared velocity across transit poses; reconstructing bones retains exact lengths. */
+export function sampleRigTrack(track: RigTrack, progress: number): Pose {
+  const { frames } = track;
+  const next = frames.findIndex(frame => frame.at > progress);
+  const index = next < 0 ? frames.length - 2 : Math.max(0, next - 1);
+  const a = frames[index], b = frames[index + 1], duration = b.at - a.at;
+  const t = (progress - a.at) / duration;
+  const values = a.values.map((value, channel) => cubic(value, b.values[channel], a.velocity[channel], b.velocity[channel], t, duration));
+  const out: Pose = { ...track.start, hip: { x: values[0], y: values[1] }, bellAngle: values[3], bellDepth: values[4] };
+  jointBones.forEach(([root, end, length], i) => {
+    out[end] = { x: out[root].x + Math.cos(values[i + 5]) * length, y: out[root].y + Math.sin(values[i + 5]) * length };
+  });
+  // Retain the authored floor/jump height. This translates the whole rig, preserving
+  // bone lengths and preventing the support foot from drifting beneath the floor.
+  const dy = values[2] - Math.max(out.leftFoot.y, out.rightFoot.y);
+  for (const key of joints) out[key] = { x: out[key].x, y: out[key].y + dy };
   return out;
 }
