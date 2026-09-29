@@ -1,3 +1,4 @@
+import { APP_NAME } from '../src/brand';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WorkoutHistoryEntry } from '../src/types';
 import { exportStoredCopies } from '../src/storage/store';
@@ -64,7 +65,7 @@ export default function HistoryScreen() {
             </View>}
             <Pressable accessibilityRole="button" accessibilityState={{expanded:dataTools}} onPress={() => setDataTools(!dataTools)} style={styles.clear}><Text style={styles.muted}>Data backup and recovery {dataTools ? '▴' : '▾'}</Text></Pressable>
             {(dataTools || pendingHistory.length > 0) && <>
-            <Pressable style={styles.clear} onPress={() => { void exportStoredCopies().then(message => Share.share({ message, title: 'MOVEWRK data backup' })).catch(() => Alert.alert('Export failed', 'Your saved data has not been changed.')); }}><Text style={styles.muted}>Export data and recovery copies</Text></Pressable>
+            <Pressable style={styles.clear} onPress={() => { void exportStoredCopies().then(message => Share.share({ message, title: `${APP_NAME} data backup` })).catch(() => Alert.alert('Export failed', 'Your saved data has not been changed.')); }}><Text style={styles.muted}>Export data and recovery copies</Text></Pressable>
             <Pressable style={styles.clear} onPress={() => Alert.alert('Archive and reset history?', 'The original history will be preserved in an exportable recovery copy. A fresh history will be created and pending workouts imported.', [{text:'Cancel',style:'cancel'},{text:'Archive and reset',onPress:recoverHistory}])}><Text style={styles.muted}>Recover damaged history</Text></Pressable>
             </>}
             <View>

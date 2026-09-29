@@ -94,7 +94,7 @@ export function localizedExerciseCopy(exercise: ExerciseDefinition, language: UI
     };
   }
   return {
-    description: exercise.description ?? 'Custom kettlebell exercise.',
+    description: exercise.description ?? 'Custom exercise.',
     technique: exercise.technique ?? ['Move with control and stop the set when technique breaks down.'],
     focus: exercise.focus ?? [exercise.category]
   };

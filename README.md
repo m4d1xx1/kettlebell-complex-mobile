@@ -1,187 +1,92 @@
-# Kettlebell Complex Mobile — v0.4 Beta Candidate
+# DAYBRAVE — v0.5.0
 
-A focused mobile-native kettlebell complex builder and workout runner for iOS and Android.
+A workout companion for getting back into training, even when life is busy.
+Build short kettlebell or bodyweight workouts, train at home or at the gym,
+and track completed sessions. The app is English-only, built with Expo SDK 57
+and React Native for iOS and Android.
 
-## Product principle
+DAYBRAVE is the provisional name selected on 2026-09-29. Trademark review is
+incomplete. `main` and `PROJECT_HANDOFF.md` are the source of truth for project status.
 
-**Build → configure → train → review → repeat.**
+## Current app
 
-The app is intentionally narrower than a generic gym tracker. It is designed around kettlebell complexes, clear sequencing, side handling, timers and fast repeatable workouts.
+- Quick workouts, custom plans, saved workouts and nine built-in templates.
+- Vertical equipment/category dropdowns, exercise checkboxes, technique details
+  and explained exercise pairings. Drag to reorder; no reorder arrows.
+- Joint-based SVG animations for all 32 built-in movements, with coral muscle zones.
+- Cyan bodyweight and lime kettlebell styling in the existing dark layout.
+- Fullscreen execution with reps/timers, side handling, countdowns, optional manual
+  continuation after rest, sound, voice cues and haptics.
+- Actual rep entry, partial results, pause/resume and interrupted-workout recovery.
+- Workout history, repeat sessions, bodyweight-specific totals and 9:16 share cards.
+- Save summary images to Photos or share them through the native share sheet.
+- Offline-first storage. No account or backend is required. Group workouts,
+  achievements and longer-term progression remain roadmap items.
 
-## v0.4 highlights
+## Run on iPhone from Windows
 
-### First-run onboarding
-- Three-step onboarding
-- Swedish or English UI
-- Personal default kettlebell weight
-- Personal default number of rounds
-- Personal default round rest
-- Sound / voice / haptic preference setup
-- Existing v0.3 cue preferences migrate forward
+Use a current Node.js 22 release compatible with Expo SDK 57 and Expo Go with
+support for this SDK. From the existing checkout:
 
-### Complete UI localization
-- Swedish and English app interface
-- Localized navigation and controls
-- Localized history dates
-- Localized exercise categories and difficulty
-- Swedish exercise descriptions and technique cues
-- Voice cues can independently use Swedish or English
+```powershell
+cd C:\Users\Christopher\kettlebell-complex-mobile
+git switch main
+git pull origin main
+npm install
+npx expo start --tunnel --go
+```
 
-Exercise names remain standard kettlebell terminology (Swing, Clean, Snatch, etc.) so the library maps cleanly to common training terminology.
+Scan the QR code with the iPhone camera and open it in Expo Go. Keep the terminal
+and PC running during the session. If Metro has a stale cache, retry with `-c`.
+The Expo tunnel attempted from the assistant environment did not connect;
+there is no active hosted demo link.
 
-### Personal training defaults
-- Presets inherit the user's default weight, rounds and rest
-- Builder can reapply personal defaults with one tap
-- Defaults remain editable in Settings
+### Short functional demo
 
-### Movement presentation
-- Native SVG exercise illustrations
-- Lightweight movement animation in exercise detail, workout preview and active workout
-- No downloaded video assets or network dependency
+1. Finish onboarding if prompted.
+2. Choose **Workout templates → Bodyweight Basics**. Save any current draft first
+   if you want to keep it.
+3. Set **Rounds** to **1** and review the workout before starting.
+4. Run Air Squat (12), Push-Up (8), Bodyweight Reverse Lunge (10), Glute Bridge (12),
+   and Plank (30 seconds).
+5. Check animations, pause/resume, actual rep entry, summary and history.
+6. Try **Save image** and **Share image** from the completed workout.
 
-### Workout mode
-- Three-second start countdown
-- Reps and timed exercises
-- Left / right / alternating / L+R execution
-- Automatic round rest
-- Audio cues
-- Optional voice coaching
-- Haptics
-- Screen stays awake
-- Animated current exercise
-- Next-step preview
+This is a test setup using the existing preset. The full phone workflow still
+needs user validation; local checks and rendered previews are not device tests.
 
-### Improved workout summary
-- Total time
-- Average time per round
-- Total reps
-- Load volume
-- Comparison with the most recent matching logged workout
-- Completed workout automatically saved to history
-
-### Library and templates
-- Search
-- Categories
-- Favorite exercises
-- Technique details
-- Custom exercises
-- Saved complexes
-- Pinned favorite templates
-
-### History
-- Duration, reps and load volume
-- Seven-day activity graph
-- Repeat previous v0.3/v0.4 workouts when a plan snapshot exists
-
-## Offline-first
-
-Core use is local and offline:
-- current complex
-- saved templates
-- exercise favorites
-- custom exercises
-- settings
-- history
-
-No account or backend is required for the beta candidate.
-
-## Run locally
-
-Use a current Node.js 22 release compatible with Expo SDK 57.
+## Validation
 
 ```bash
-npm install
-npx expo install --fix
 npm run typecheck
-npx expo-doctor
-npx expo start
+npm run test:core
+npm run test:integration
+npx expo install --check
+npx expo-doctor@latest
 ```
 
-Test on:
-- Expo Go where supported
-- iOS Simulator
-- Android Emulator
-- preferably a real iPhone and Android device before public beta
+GitHub Actions runs these checks on pushes and pull requests. Local release checks
+also include an iOS export. Expo Go cannot validate every native permission or
+production-build behavior; test a signed build before release.
 
-## Remaining release work
+## Identity and stored data
 
-Before TestFlight / Play Store internal testing:
-- replace example bundle identifiers
-- device-test audio behavior and silent-mode behavior
-- test drag-and-drop on small Android devices
-- review Swedish copy on-device
-- add privacy policy and store metadata
-- add crash reporting / analytics only if wanted
-- produce store screenshots
-- run EAS preview builds
+The displayed name is DAYBRAVE. During the provisional rename, the repository,
+Expo slug/scheme, native application IDs, npm package name and `kb.*` storage keys
+retain their existing values. This preserves the existing project and local data.
+Choose final release IDs and any migration deliberately before publishing.
 
-## GitHub CI
+## Native development builds
 
-The repository includes `.github/workflows/validate.yml`.
+`eas.json` includes development, preview and production profiles. A signed physical
+iPhone development build needs the appropriate Apple signing setup. Once installed,
+start its JavaScript server with `npm run ios:start`.
 
-Every push / pull request runs:
-- `npm install`
-- `npx expo install --check`
-- `npx expo-doctor@latest`
-- `npm run typecheck`
+## Before launch
 
-This is the authoritative dependency/type validation when the local environment is unavailable.
-
-## iPhone development build
-
-A real-device iOS development build is configured in `eas.json`.
-
-```bash
-npm install
-npx expo login
-npx eas-cli@latest login
-npx eas-cli@latest build:configure
-npx eas-cli@latest device:create
-npx eas-cli@latest build --platform ios --profile development
-```
-
-After EAS finishes, open the provided install link/QR code on the registered iPhone.
-An Apple Developer Program membership is required for signing a custom iOS build.
-
-
-## Free iPhone testing with Xcode Personal Team
-
-You can install and test the app on your own iPhone without a paid Apple Developer Program membership by building locally on a Mac with Xcode.
-
-Requirements:
-- Mac with a current Xcode version
-- Apple Account signed into Xcode
-- iPhone connected to the Mac
-- Node.js 22.13 or newer
-- Developer Mode enabled on the iPhone
-
-Setup:
-
-```bash
-git clone https://github.com/m4d1xx1/kettlebell-complex-mobile.git
-cd kettlebell-complex-mobile
-npm install
-npm run ios:prebuild
-open ios/*.xcworkspace
-```
-
-In Xcode:
-1. Open **Xcode > Settings > Accounts** and sign in with your Apple Account.
-2. Select the app project and the main app target.
-3. Open **Signing & Capabilities**.
-4. Enable **Automatically manage signing**.
-5. Select your **Personal Team**.
-6. If Xcode reports that the bundle identifier is unavailable, replace it with a unique reverse-DNS identifier.
-7. Connect the iPhone, select it as the run destination, and press **Run**.
-
-On iOS 16 or later, enable **Settings > Privacy & Security > Developer Mode** if prompted.
-
-After the first native build, normal JavaScript/TypeScript changes usually do not require recompiling the native app. Start the development server with:
-
-```bash
-npm run ios:start
-```
-
-Then open Kettlebell Complex on the iPhone.
-
-Free Personal Team provisioning is temporary. Apple currently limits free provisioning profiles to 7 days, after which the app must be rebuilt and reinstalled.
+- Complete physical-device testing: small screens, large text, keyboard, interruption,
+  recovery, audio, photo saving and sharing.
+- Review movement technique and contact alignment with qualified human input.
+- Finish trademark checks and final branding/release identifiers.
+- Prepare privacy policy, store metadata and screenshots.
+- Keep account/group features and monetization separate from the current offline MVP.

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MOVEWRK",
+    "name": "DAYBRAVE",
     "slug": "kettlebell-complex",
     "scheme": "kettlebellcomplex",
     "version": "0.5.0",
@@ -11,8 +11,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow MOVEWRK to access your photos.",
-          "savePhotosPermission": "Allow MOVEWRK to save workout summary images to your photos.",
+          "photosPermission": "Allow DAYBRAVE to access your photos.",
+          "savePhotosPermission": "Allow DAYBRAVE to save workout summary images to your photos.",
           "granularPermissions": [
             "photo"
           ]

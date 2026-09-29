@@ -4,6 +4,45 @@ Last updated: 2026-09-29
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
 
+## Latest handover — DAYBRAVE working name (2026-09-29)
+
+- Source verified before editing: GitHub `main` at
+  `b43ad36f3fce8ca4006b2a1ae074e6938ce20cc7`.
+- The user selected **DAYBRAVE** as the provisional name, replacing MOVEWRK.
+  App display name, wordmark, share cards/hashtag, sharing and backup dialogs,
+  and Photos permission text now use DAYBRAVE. Shared UI strings use `src/brand.ts`.
+- Audience: an international, English-speaking audience getting back into exercise,
+  including people with children, work and other responsibilities. The app is a
+  supportive workout companion and tracker for short sessions at home or the gym.
+  Onboarding and workout labels now reflect both kettlebell and bodyweight training.
+- Trademark status: preliminary DAYBRAVE name searches in TMview and USPTO returned
+  no hits. EU/Nordic similarity and national-register checks were NOT completed
+  because register access failed. Do not describe DAYBRAVE as legally cleared.
+  Domain availability is out of scope for now, as requested by the user.
+- Keep the existing Expo slug/scheme, native app IDs, npm package name, repository
+  name and `kb.*` storage keys during this provisional rename. Changing native IDs
+  creates a separate installed app; changing storage keys would hide existing data.
+  Final identifiers require a deliberate release/migration decision.
+- Existing dark layout, cyan bodyweight, lime kettlebell, coral muscle zones,
+  pose animations, fullscreen runner, summary logic and share cards remain the baseline.
+  No reorder arrows or new language selector.
+- Requested phone demo: Expo/Metro started in this environment, but ngrok failed
+  with `ngrok tunnel took too long to connect`. No usable remote QR/link was delivered
+  and no physical-device test has occurred. The failed tunnel is no longer running.
+- Reproducible first phone test: launch current main with `npx expo start --tunnel --go`
+  on the user's Windows PC, open it in Expo Go, choose **Bodyweight Basics** in
+  **Workout templates**, then set **Rounds** to **1**. This uses the actual preset
+  (Air Squat 12, Push-Up 8, Bodyweight Reverse Lunge 10, Glute Bridge 12, Plank 30 s).
+  Test animations, pause/resume, rep entry, summary, image saving and native sharing.
+  This is a functional demo configuration, not a newly added training program.
+- Validation passed: TypeScript, core regression tests, provider/lifecycle integration
+  tests and Expo iOS export (1,775 modules). No dependencies changed. Header/wordmark
+  wrapping accommodates the longer name; physical-device layout review remains open.
+
+Next: physical iPhone review of this build, then address observed issues. Complete
+trademark review and finalize release branding before launch. Earlier naming
+suggestions and MOVEWRK references below are historical unless explicitly updated.
+
 ## Latest handover — layout accepted for now (2026-09-29)
 
 - Verified GitHub `main` before this documentation update:
@@ -35,7 +74,7 @@ Next session:
    Start with `src/animation/exercisePoses.ts`, `src/animation/bodyRig.ts` and
    `src/components/PoseExerciseFigure.tsx` for any further animation corrections.
 4. Address observed device issues before expanding the roadmap. Keep English-only,
-   temporary MOVEWRK branding, cyan bodyweight, lime kettlebell, red muscle zones,
+   current DAYBRAVE branding, cyan bodyweight, lime kettlebell, red muscle zones,
    fullscreen execution, bodyweight summaries and share cards. Do not restore arrows.
 
 Earlier dated local/publication notes below describe history and are superseded by
@@ -98,19 +137,10 @@ Latest verified implementation GitHub Actions run is green: #81 for `9efe0b4`. V
 
 ## Current working name
 
-The app is currently branded in code as **MOVEWRK**, but this is NOT considered final.
-
-Important naming findings:
-- MOVEWRK is too close to existing MOVEWORK software/trademark usage and should probably be replaced before launch.
-- KETTLEFLOW is already used by a fitness app and should not be used.
-- User wants a short, simple, globally usable brand — not Sweden-specific.
-- Name directions the user has liked or explicitly raised:
-  - **GRYND** (user chose this direction from a previous top-10)
-  - similar names to GRYND
-  - **DRVN**
-  - **FORGD** — user asked for availability checking
-- Next naming task: perform a real global clearance-style search across web, App Store, Google Play, trademark databases and domains before committing to a new name.
-- Do not assume any candidate is clear until checked.
+**DAYBRAVE**, selected by the user on 2026-09-29, is the current provisional name.
+It replaces MOVEWRK in the app and documentation. Use English-only, encouraging
+copy aimed at people returning to training with limited time. Do not claim the
+name is cleared for registration: the EU/Nordic similarity review remains open.
 
 ## Product direction
 
@@ -473,13 +503,13 @@ The strategic goal is that shared result cards become free brand distribution.
 
 ## Current brand visuals
 
-The existing temporary MOVEWRK visual system:
+The current provisional DAYBRAVE visual system:
 - dark background
 - lime green for kettlebell / loaded training
 - cyan / blue for bodyweight
 - geometric two-color mark
 - compact wordmark
-- premium / performance-focused look
+- clear, encouraging presentation for returning exercisers
 - 9:16 social result cards
 
 A concept image was generated in chat, but it accidentally displayed "KETTLEFLOW". The visual direction was liked; the name was not retained.
@@ -681,7 +711,8 @@ Current app.json still contains legacy identifiers:
 - iOS bundle ID: `com.kettlebellcomplex.mobile`
 - Android package: `com.kettlebellcomplex.mobile`
 
-These MUST be renamed once the final global brand name is chosen.
+These remain stable for the provisional DAYBRAVE rename. Decide final release
+identifiers and any migration explicitly before changing them; do not reset user data.
 
 ## Important source files
 
@@ -705,24 +736,15 @@ These MUST be renamed once the final global brand name is chosen.
 
 ## Next recommended actions
 
-1. Finalize a globally usable brand name.
-   - Current promising directions from user: GRYND-like, DRVN, FORGD.
-   - Check actual availability before using:
-     - exact and similar trademarks
-     - EUIPO / WIPO / relevant national databases
-     - Apple App Store
-     - Google Play
-     - .com and relevant domains
-     - major social handles
-2. Replace temporary MOVEWRK branding once final name is chosen.
-3. Replace slug, scheme, bundle identifier and Android package.
-4. Refine app icon / logo around final name.
-5. Expand templates to 30–50 quality workouts.
-6. Improve movement animations.
-7. Add achievements / milestones / streaks.
-8. Design progression engine.
-9. Later add accounts, group workouts and social layer.
-10. Keep wearable architecture in mind while refactoring workout engine.
+1. Run the current build on the user's iPhone, including the one-round Bodyweight
+   Basics demo above, and fix observed layout, keyboard, lifecycle, audio or sharing issues.
+2. Review all movement poses for technique, contact and floor alignment.
+3. Complete DAYBRAVE trademark similarity checks in EU/Nordic priority markets
+   before committing to launch. Do not resume domain checks unless requested.
+4. Decide final icon, brand and release identifiers after that review.
+5. Expand quality short-workout templates and progression for returning exercisers.
+6. Add achievements and milestones; accounts/group workouts remain later roadmap work.
+7. Keep wearable architecture in mind while refactoring the workout engine.
 
 ## Continuity instruction for a new chat
 
@@ -737,4 +759,4 @@ When continuing this project in another ChatGPT chat:
 - preserve fullscreen workout behavior
 - preserve bodyweight-specific summary logic
 - preserve share-card functionality
-- do not treat MOVEWRK as final naming
+- use DAYBRAVE as the provisional name; trademark clearance is still pending

@@ -111,7 +111,7 @@ export default function BuilderScreen() {
       ListHeaderComponent={
         <View style={styles.headerBlock}>
           <View style={styles.hero}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 200 }}>
               <BrandMark compact/>
               <TextInput value={plan.name} onChangeText={(name) => setPlan((p) => ({ ...p, name }))} maxLength={40} style={styles.nameInput}/>
             </View>
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, backgroundColor: colors.bg, gap: 10, paddingBottom: 30 },
   headerBlock: { gap: 16, marginBottom: 10 },
-  hero: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  hero: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
   eyebrow: { color: colors.accent, fontWeight: '900', letterSpacing: 1.4, fontSize: 11 },
   nameInput: { color: colors.text, fontSize: 29, fontWeight: '900', padding: 0, marginTop: 3 },
   topActions: { flexDirection: 'row', gap: 6, alignItems: 'center' },

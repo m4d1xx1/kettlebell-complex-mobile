@@ -4,6 +4,7 @@ import { colors, radius } from '../theme';
 import { BodyweightSummaryItem } from '../workout/steps';
 import { formatDuration } from '../utils/format';
 import { BrandMark } from './BrandMark';
+import { APP_NAME, APP_HASHTAG } from '../brand';
 
 type Props = {
   completedAt?: string;
@@ -81,15 +82,15 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
         </View>
       ) : (
         <View style={styles.statement}>
-          <Text style={styles.statementStrong}>SHOW UP. DO THE WORK.</Text>
-          <Text style={styles.statementMuted}>Built with MOVEWRK</Text>
+          <Text style={styles.statementStrong}>ONE WORKOUT FORWARD.</Text>
+          <Text style={styles.statementMuted}>Made time with {APP_NAME}</Text>
         </View>
       )}
 
       <View style={styles.footer}>
         <View style={styles.footerLine}/>
-        <Text style={styles.footerText}>MOVEWRK</Text>
-        <Text style={styles.hashtag}>#MOVEWRK</Text>
+        <Text style={styles.footerText}>{APP_NAME}</Text>
+        <Text style={styles.hashtag}>{APP_HASHTAG}</Text>
       </View>
     </View>
   );
@@ -119,7 +120,7 @@ const baseStyles = StyleSheet.create({
     overflow: 'hidden',
     justifyContent: 'space-between'
   },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  header: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center', justifyContent: 'space-between' },
   date: { color: colors.muted, fontSize: 9, fontWeight: '900', letterSpacing: 1.1 },
   hero: { alignItems: 'center', gap: 5, marginTop: 12 },
   eyebrow: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 1.8 },

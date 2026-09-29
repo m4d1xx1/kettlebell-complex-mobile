@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius } from '../theme';
+import { colors } from '../theme';
+import { APP_NAME } from '../brand';
 
 export function BrandMark({ compact = false }: { compact?: boolean }) {
   const size = compact ? 34 : 46;
@@ -9,13 +10,13 @@ export function BrandMark({ compact = false }: { compact?: boolean }) {
         <View style={[styles.bar, styles.leftBar, { height: size * 0.62 }]}/>
         <View style={[styles.bar, styles.rightBar, { height: size * 0.62 }]}/>
       </View>
-      <Text style={[styles.wordmark, compact && styles.wordmarkCompact]}>MOVEWRK</Text>
+      <Text style={[styles.wordmark, compact && styles.wordmarkCompact]}>{APP_NAME}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   mark: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -27,6 +28,6 @@ const styles = StyleSheet.create({
   bar: { position: 'absolute', width: 8, borderRadius: 5 },
   leftBar: { backgroundColor: colors.accent, transform: [{ rotate: '-28deg' }], left: '31%' },
   rightBar: { backgroundColor: colors.bodyweight, transform: [{ rotate: '28deg' }], right: '31%' },
-  wordmark: { color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: 2.1 },
-  wordmarkCompact: { fontSize: 17, letterSpacing: 1.7 }
+  wordmark: { color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: 1.7 },
+  wordmarkCompact: { fontSize: 17, letterSpacing: 1.2 }
 });

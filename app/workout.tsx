@@ -1,3 +1,4 @@
+import { APP_NAME } from '../src/brand';
 import * as Haptics from 'expo-haptics';
 import { Asset, requestPermissionsAsync } from 'expo-media-library';
 import * as Sharing from 'expo-sharing';
@@ -138,13 +139,13 @@ export default function WorkoutScreen() {
     try {
       const permission = await requestPermissionsAsync(true, ['photo']);
       if (!permission.granted) {
-        Alert.alert('Photo access needed', 'Allow MOVEWRK to save workout images to Photos.');
+        Alert.alert('Photo access needed', `Allow ${APP_NAME} to save workout images to Photos.`);
         return;
       }
       const uri = await captureSummaryImage();
       await Asset.create(uri);
       hapticSuccess();
-      Alert.alert('Saved', 'Your MOVEWRK workout image was saved to Photos.');
+      Alert.alert('Saved', `Your ${APP_NAME} workout image was saved to Photos.`);
     } catch {
       Alert.alert('Could not save image', 'Please try again.');
     }
@@ -161,7 +162,7 @@ export default function WorkoutScreen() {
       await Sharing.shareAsync(uri, {
         mimeType: 'image/png',
         UTI: 'public.png',
-        dialogTitle: 'Share your MOVEWRK workout'
+        dialogTitle: `Share your ${APP_NAME} workout`
       });
     } catch {
       Alert.alert('Could not share', 'Please try again.');
