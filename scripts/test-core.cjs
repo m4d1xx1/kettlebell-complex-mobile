@@ -35,6 +35,46 @@ assert.equal(validSession(createSession(plan, BASE_EXERCISES, false, Date.now())
 const corrupt = tickSession(start(), 29000);
 assert.equal(validSession({...corrupt, fingerprint: 'wrong'}), false);
 assert.equal(validSession({...corrupt, results: [{...corrupt.results[0],seconds:999}]}), false);
+// Hands-free timing: the same elapsed time drives the rep label and pose.
+const { remainingReps, repPlayback } = load('src/workout/repTiming.ts');
+const timing = {secondsPerRep:3,transitionSeconds:5};
+const automatic = {...reps,rounds:2,restSeconds:5,items:[{...reps.items[0],value:2},{...reps.items[1],value:1}]};
+let auto = createSession(automatic,BASE_EXERCISES,false,1000,timing);
+assert.notEqual(auto.fingerprint,start(automatic).fingerprint);
+auto=tickSession(auto,4000);assert.equal(auto.phase,'exercise');
+auto=tickSession(auto,6999);assert.equal(remainingReps(2,auto.phaseMs,3),2);
+assert.ok(repPlayback('swing',auto.phaseMs,3).progress>0.99);
+auto=tickSession(auto,7000);assert.equal(remainingReps(2,auto.phaseMs,3),1);assert.equal(repPlayback('swing',auto.phaseMs,3).progress,0);
+auto=actOnSession(auto,'pause',7500);const frozenPose=repPlayback('swing',auto.phaseMs,3);
+auto=tickSession(auto,17500);assert.deepEqual(repPlayback('swing',auto.phaseMs,3),frozenPose);
+auto=actOnSession(auto,'resume',17500);auto=tickSession(auto,20000);
+assert.equal(auto.phase,'transition');assert.equal(auto.index,1);assert.equal(auto.results[0].estimatedReps,true);assert.equal(remainingSeconds(auto),5);
+assert.equal(validSession(JSON.parse(JSON.stringify(auto))),true);
+const recoveredAuto=restoreSession(auto,90000);assert.equal(recoveredAuto.paused,true);assert.equal(tickSession(recoveredAuto,95000).phaseMs,auto.phaseMs);
+// A stale next action at a deadline must not skip the next exercise.
+let boundary=tickSession(createSession(automatic,BASE_EXERCISES,false,1000,timing),4000);
+boundary=actOnSession(boundary,'next',10000);assert.equal(boundary.phase,'transition');assert.equal(boundary.results.length,1);
+// The complete sequence takes 18s work + 10s switches + 5s round rest.
+auto=tickSession(createSession(automatic,BASE_EXERCISES,false,1000,timing),37000);
+assert.equal(auto.phase,'done');assert.equal(auto.results.length,4);assert.equal(sessionSummary(auto).totalReps,6);
+assert.equal(sessionSummary(auto).workSeconds,18);assert.equal(sessionSummary(auto).restSeconds,15);assert.equal(validSession(auto),true);
+// Manual round rest remains opt-in, even with automatic exercises.
+auto=tickSession(createSession(automatic,BASE_EXERCISES,true,1000,timing),50000);assert.equal(auto.waiting,true);assert.equal(auto.round,1);
+auto=actOnSession(auto,'continue',50000);assert.equal(auto.round,2);assert.equal(auto.phase,'exercise');
+// No transition after the final exercise; zero switch time also works.
+auto=tickSession(createSession({...automatic,rounds:1},BASE_EXERCISES,false,1000,{...timing,transitionSeconds:0}),13000);assert.equal(auto.phase,'done');
+// Separate left/right steps get a switch countdown and reset their reps.
+const sided={...automatic,rounds:1,items:[{key:'side',exerciseId:'clean',mode:'reps',value:1,side:'both'}]};
+auto=tickSession(createSession(sided,BASE_EXERCISES,false,1000,timing),7000);assert.equal(auto.phase,'transition');assert.equal(auto.steps[auto.index].side,'right');
+auto=tickSession(auto,12000);assert.equal(remainingReps(1,auto.phaseMs,3),1);
+// Authored two-sided loops count one rep per side, including an odd last rep.
+for(const id of ['farmer-march','front-rack-march','mountain-climber','high-knees','bodyweight-reverse-lunge']) {
+ assert.equal(repPlayback(id,3000,3).progress,0.5);assert.equal(repPlayback(id,6000,3).progress,0);assert.equal(remainingReps(3,9000,3),0);
+}
+assert.equal(validSession({...auto,autoTiming:{secondsPerRep:0,transitionSeconds:5}}),false);
+const {validSettings}=load('src/storage/validation.ts');
+assert.equal(validSettings({autoAdvanceExercises:true,secondsPerRep:3,transitionSeconds:5}),true);
+assert.equal(validSettings({secondsPerRep:NaN}),false);assert.equal(validSettings({transitionSeconds:1.5}),false);
 const { quickStartPlan } = load('src/workout/quickStart.ts');
 for (const equipment of ['kettlebell','bodyweight']) for (const minutes of [10,15,20]) for (const level of ['Beginner','Intermediate']) for (const goal of ['Strength','Conditioning']) {
   const quick = quickStartPlan(equipment,minutes,level,goal,16,BASE_EXERCISES);

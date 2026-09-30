@@ -1,3 +1,4 @@
+import { remainingReps } from '../src/workout/repTiming';
 import { APP_NAME } from '../src/brand';
 import * as Haptics from 'expo-haptics';
 import { Asset, requestPermissionsAsync } from 'expo-media-library';
@@ -27,7 +28,7 @@ export default function WorkoutScreen() {
   useKeepAwake();
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const heroSize = Math.max(100, Math.min(width * 0.7, (height - insets.top - insets.bottom - 580) / Math.max(1,fontScale), 280));
+  const heroSize = Math.max(100, Math.min(width * 0.7, (height - insets.top - insets.bottom - 380) / Math.max(1,fontScale), 280));
   const readyHeroSize = Math.min(width * 0.45, height * 0.2, 170);
   const { plan: draft, exercises, completeWorkout, settings, history, hydrated } = useWorkout();
   const { t } = useI18n();
@@ -71,7 +72,8 @@ export default function WorkoutScreen() {
   }, [remaining, paused, phase]);
   useEffect(() => {
     if (paused) return;
-    if (phase === 'exercise' && step) cues.announceStep(step);
+    if (phase === 'exercise' && step) { cues.cueCountdown(0); cues.announceStep(step); }
+    if (phase === 'transition' && step) cues.announceRest(session?.autoTiming?.transitionSeconds ?? 5, step);
     if (phase === 'rest') cues.announceRest(plan.restSeconds, roundSteps[0]);
     if (phase === 'done') { cues.announceComplete(); hapticSuccess(); }
   }, [phase, stepIndex, round, paused]);
@@ -92,7 +94,7 @@ export default function WorkoutScreen() {
   }
   useEffect(() => { if (phase === 'done') void saveResult(); }, [phase, session?.id]);
   async function startWorkout() {
-    try { await engine.start(draft, exercises, settings.manualContinueAfterRest); }
+    try { await engine.start(draft, exercises, settings.manualContinueAfterRest, (settings.autoAdvanceExercises ?? true) ? { secondsPerRep: settings.secondsPerRep ?? 3, transitionSeconds: settings.transitionSeconds ?? 5 } : undefined); }
     catch (error) { Alert.alert('Cannot start workout', error instanceof Error ? error.message : 'Review your workout and try again.'); }
   }
   function enterReps(ending = false) {
@@ -101,12 +103,6 @@ export default function WorkoutScreen() {
     setRepEntry({stepKey:step.stepKey,round:session.round,name:`${step.exercise.name}${sideLabel(step) ? ` · ${sideLabel(step)}` : ''}`,target:step.value,ending});
   }
   function advance() { engine.act('next'); }
-  function goBack() {
-    engine.act('pause');
-    Alert.alert('Restart previous exercise?', 'Its previous result will be replaced when you complete it again. Time already spent remains included.', [
-      { text: 'Cancel', style: 'cancel' }, { text: 'Restart', onPress: () => engine.act('back') }
-    ]);
-  }
   async function resetWorkout() { if (!saved) return; try { await engine.discard(); setSavedId(null); setSaveError(null); } catch {} }
   function endWorkout() {
     if (!session) { router.replace('/'); return; }
@@ -193,7 +189,12 @@ export default function WorkoutScreen() {
           </View>
         </View>
 
-        <WorkoutOverview plan={plan} steps={roundSteps} manualRest={settings.manualContinueAfterRest}/>
+        <View style={styles.compare}>
+          <Text style={styles.next}>{(settings.autoAdvanceExercises ?? true) ? `Automatic · ${settings.secondsPerRep ?? 3}s per rep · ${settings.transitionSeconds ?? 5}s to switch` : 'Manual · tap after each rep exercise'}</Text>
+          <Text style={styles.safety}>{(settings.autoAdvanceExercises ?? true) ? 'Follow the animation: each completed repetition counts down. Reps are guided, not detected. Adjust the pace in Settings.' : 'Timed exercises still advance automatically.'}</Text>
+          <Pressable onPress={() => router.push('/settings')} style={styles.textButton}><Text style={styles.textButtonText}>Change timer settings</Text></Pressable>
+        </View>
+        <WorkoutOverview plan={plan} steps={roundSteps} manualRest={settings.manualContinueAfterRest} autoTiming={(settings.autoAdvanceExercises ?? true) ? { secondsPerRep: settings.secondsPerRep ?? 3, transitionSeconds: settings.transitionSeconds ?? 5 } : undefined}/>
         <View style={styles.bottom}>
           {saveNotice}
           <PrimaryButton label={t('startCountdown')} onPress={startWorkout}/>
@@ -240,6 +241,7 @@ export default function WorkoutScreen() {
           completedDuration={completedDuration}
           rounds={actual?.rounds ?? 0}
           partial={session?.status === 'partial'}
+          estimatedReps={session?.results.some(r => r.estimatedReps)}
           totalReps={stats.totalReps}
           weightKg={plan.weightKg}
           volumeKg={stats.volumeKg}
@@ -253,7 +255,7 @@ export default function WorkoutScreen() {
           <Text style={styles.bodyweightSummaryTitle}>COMPLETE EXERCISE RESULTS</Text>
           {session?.results.map(result => { const item = session.steps[result.index]; return <View key={`${result.round}:${result.index}`} style={styles.bodyweightSummaryRow}>
             <Text style={styles.bodyweightSummaryName}>R{result.round} · {item.exercise.name}{item.side !== 'none' ? ` · ${item.side}` : ''}</Text>
-            <Text style={styles.bodyweightSummaryValue}>{item.mode === 'reps' ? `${result.reps}/${item.value} reps` : `${formatDuration(Math.floor(result.seconds))}/${formatDuration(item.value)}`}{result.completed ? '' : ' · Partial / skipped'}</Text>
+            <Text style={styles.bodyweightSummaryValue}>{item.mode === 'reps' ? `${result.reps}/${item.value} reps` : `${formatDuration(Math.floor(result.seconds))}/${formatDuration(item.value)}`}{result.estimatedReps ? ' · Estimated by timer' : ''}{result.completed ? '' : ' · Partial / skipped'}</Text>
           </View>; })}
         </View>
         <View style={styles.shareActions}>
@@ -285,7 +287,8 @@ export default function WorkoutScreen() {
     );
   }
 
-  if (phase === 'rest') {
+  if (phase === 'rest' || phase === 'transition') {
+    const upcoming = phase === 'transition' ? step : roundSteps[0];
     return (
       <ScrollView style={styles.workoutPage} contentContainerStyle={{flexGrow:1,padding:16,paddingTop:Math.max(insets.top,12),paddingBottom:Math.max(insets.bottom,12),gap:12}} showsVerticalScrollIndicator>
         <Progress value={progress} color={bodyweightOnly ? colors.bodyweight : colors.accent}/>
@@ -294,11 +297,11 @@ export default function WorkoutScreen() {
           <Text style={styles.elapsed}>{formatDuration(elapsed)}</Text>
         </View>
         <View style={styles.main}>
-          <Text style={styles.kicker}>{remaining === 0 && session?.manualRest ? t('restComplete') : t('roundComplete')}</Text>
-          <Text style={styles.restLabel}>{t('rest')}</Text>
+          <Text style={styles.kicker}>{phase === 'transition' ? 'GET READY' : remaining === 0 && session?.manualRest ? t('restComplete') : t('roundComplete')}</Text>
+          <Text style={styles.restLabel}>{phase === 'transition' ? 'Switch exercise' : t('rest')}</Text>
           <Text style={styles.timer}>{remaining}</Text>
           <Text style={styles.unit}>{t('seconds')}</Text>
-          <Text style={styles.next}>{t('next')}: {roundSteps[0].exercise.name}{sideLabel(roundSteps[0]) ? ` · ${sideLabel(roundSteps[0])}` : ''}</Text>
+          <Text style={styles.next}>{t('next')}: {upcoming.exercise.name}{sideLabel(upcoming) ? ` · ${sideLabel(upcoming)}` : ''}</Text>
         </View>
         <View style={styles.bottom}>
           {saveNotice}
@@ -308,7 +311,7 @@ export default function WorkoutScreen() {
             </Pressable>
           ) : null}
           <PrimaryButton
-            label={remaining === 0 && session?.manualRest ? t('continue') : t('skipRest')}
+            label={phase === 'transition' ? 'Start now' : remaining === 0 && session?.manualRest ? t('continue') : t('skipRest')}
             onPress={() => engine.act('continue')}
           />
           <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>End workout</Text></Pressable>
@@ -317,7 +320,8 @@ export default function WorkoutScreen() {
     );
   }
 
-  const displayedValue = step.mode === 'time' ? remaining : step.value;
+  const autoReps = step.mode === 'reps' && !!session?.autoTiming;
+  const displayedValue = step.mode === 'time' ? remaining : autoReps ? remainingReps(step.value, session!.phaseMs, session!.autoTiming!.secondsPerRep) : step.value;
 
   return (
     <ScrollView style={styles.workoutPage} contentContainerStyle={{flexGrow:1,padding:16,paddingTop:Math.max(insets.top,12),paddingBottom:Math.max(insets.bottom,12),gap:12}} showsVerticalScrollIndicator>
@@ -330,11 +334,12 @@ export default function WorkoutScreen() {
       </View>
 
       <View style={styles.main}>
-        <ExerciseGlyph exerciseId={step.exercise.id} visual={step.exercise.visual} size={fontScale > 1.3 || height < 700 ? Math.min(heroSize,150) : heroSize} animated={!paused} side={step.side} hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
+        <ExerciseGlyph playback={autoReps ? { elapsedMs: session!.phaseMs, secondsPerRep: session!.autoTiming!.secondsPerRep } : undefined} exerciseId={step.exercise.id} visual={step.exercise.visual} size={fontScale > 1.3 || height < 700 ? Math.min(heroSize,150) : heroSize} animated={!paused} side={step.side} hero equipment={step.exercise.equipment ?? 'kettlebell'}/>
         {sideLabel(step) ? <Text style={[styles.sideBadge, isBodyweightStep && styles.bodyweightBadge]}>{sideLabel(step)}</Text> : null}
         <Text style={styles.exerciseName}>{step.exercise.name}</Text>
         <Text style={styles.target}>{displayedValue}</Text>
-        <Text style={styles.unit}>{step.mode === 'reps' ? t('reps').toLowerCase() : t('seconds')}</Text>
+        <Text style={styles.unit}>{step.mode === 'reps' ? (autoReps ? 'reps left' : t('reps').toLowerCase()) : t('seconds')}</Text>
+        {autoReps && <Text style={styles.next}>Follow the movement · {session?.autoTiming?.secondsPerRep}s per rep</Text>}
         {step.exercise.equipment !== 'bodyweight' ? (
           <View style={styles.weightPill}><Text style={styles.weightText}>{plan.weightKg} kg</Text></View>
         ) : null}
@@ -345,16 +350,15 @@ export default function WorkoutScreen() {
 
       <View style={styles.bottom}>
         {saveNotice}
-        <View style={styles.split}>
-          <Pressable onPress={goBack} style={styles.outlineHalf}><Text style={styles.outlineText}>← {t('back')}</Text></Pressable>
-          {(
-            <Pressable onPress={togglePause} style={styles.outlineHalf}><Text style={styles.outlineText}>{paused ? t('resume') : t('pause')}</Text></Pressable>
-          )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={paused ? 'Resume workout' : 'Pause workout'} onPress={togglePause} style={styles.smallControl}>
+            <Text style={styles.outlineText}>{paused ? '▶ Resume' : 'Ⅱ'}</Text>
+          </Pressable>
+          {paused && <Pressable accessibilityRole="button" accessibilityLabel="Save or end workout" onPress={endWorkout} style={styles.smallControl}><Text style={styles.outlineText}>← Exit</Text></Pressable>}
         </View>
-        <PrimaryButton disabled={paused} label={step.mode === 'time' && remaining > 0 ? 'Finish step early' : stepIndex === roundSteps.length - 1 && round === plan.rounds ? t('finishWorkout') : t('doneNext')} onPress={advance}/>
-        {step.mode === 'reps' && <Pressable accessibilityRole="button" onPress={() => enterReps()} style={styles.textButton}><Text style={styles.textButtonText}>Record a different rep count</Text></Pressable>}
-        <Pressable disabled={paused} onPress={() => engine.act('skip')} style={styles.textButton}><Text style={styles.textButtonText}>Skip exercise</Text></Pressable>
-        <Pressable onPress={endWorkout} style={styles.textButton}><Text style={styles.textButtonText}>{t('endWorkout')}</Text></Pressable>
+        {paused && <Text style={styles.safety}>Paused. Your place in the movement is saved.</Text>}
+        {!session?.autoTiming && !paused && <PrimaryButton label={step.mode === 'time' ? 'Finish step early' : 'Done · Next'} onPress={advance}/>}
+
       </View>
     </ScrollView>
   );
@@ -391,6 +395,7 @@ function DoneStat({ label, value, tone = 'kettlebell' }: { label: string; value:
 }
 
 const styles = StyleSheet.create({
+  smallControl: { minWidth: 48, minHeight: 48, paddingHorizontal: 12, borderRadius: 24, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   workoutPage: { flex: 1, backgroundColor: colors.bg },
   readyPage: { flex: 1, backgroundColor: colors.bg },
   readyTop: { gap: 5 },

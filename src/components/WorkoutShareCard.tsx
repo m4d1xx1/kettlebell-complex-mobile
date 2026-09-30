@@ -12,6 +12,7 @@ type Props = {
   completedDuration: number;
   rounds: number;
   partial?: boolean;
+  estimatedReps?: boolean;
   totalReps: number;
   weightKg: number;
   volumeKg: number;
@@ -27,6 +28,7 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
   completedDuration,
   rounds,
   partial = false,
+  estimatedReps = false,
   totalReps,
   weightKg,
   volumeKg,
@@ -58,7 +60,7 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
 
       <View style={styles.stats}>
         <ShareStat label="ROUNDS" value={String(rounds)}/>
-        <ShareStat label="REPS" value={String(totalReps)}/>
+        <ShareStat label={estimatedReps ? "GUIDED REPS" : "REPS"} value={String(totalReps)}/>
         {hasKettlebell ? <ShareStat label="WEIGHT" value={`${weightKg} kg`}/> : null}
         {hasKettlebell ? <ShareStat label="VOLUME" value={`${Math.round(volumeKg / 100) / 10}t`}/> : null}
         {bodyweightReps > 0 ? <ShareStat label="BW REPS" value={String(bodyweightReps)} bodyweight/> : null}

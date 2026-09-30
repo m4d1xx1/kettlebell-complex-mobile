@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, RadialGradient, Path, Stop } from 'react-native-svg';
 import { ExerciseVisual, SideMode } from '../types';
+import { repPlayback } from '../workout/repTiming';
 import { getMotion, Muscle, Point, samplePose } from '../animation/exercisePoses';
 
 const red = '#E96B73';
@@ -32,7 +33,8 @@ function MusclePatch({ a, b, width = 3, opacity = 1, side = 0 }: { a: Point; b: 
   return <Path d={segment(shift(mix(a, b, 0.22)), shift(mix(a, b, 0.74)), width, width * 0.65)} fill={red} opacity={opacity}/>;
 }
 
-export function PoseExerciseFigure({ visual, exerciseId, size, animated, accent, bodyStroke, equipment = 'kettlebell', side = 'none' }: {
+export function PoseExerciseFigure({ visual, exerciseId, size, animated, accent, bodyStroke, equipment = 'kettlebell', side = 'none', playback }: {
+  playback?: { elapsedMs: number; secondsPerRep: number };
   side?: SideMode | 'none'; visual: ExerciseVisual; exerciseId?: string; size: number; animated: boolean; accent: string; bodyStroke: string; equipment?: 'kettlebell' | 'bodyweight';
 }) {
   const progressRef = useRef(0);
@@ -56,7 +58,7 @@ export function PoseExerciseFigure({ visual, exerciseId, size, animated, accent,
   }, []);
   useEffect(() => { progressRef.current = 0; cycles.current = 0; setProgress(0); }, [motion, side]);
   useEffect(() => {
-    if (!animated || motion.hold || reducedMotion) return;
+    if (playback || !animated || motion.hold || reducedMotion) return;
     const origin = performance.now() - progressRef.current * motion.duration;
     let frame = 0, lastDraw = 0, lastCycle = 0;
     const draw = () => {
@@ -73,8 +75,10 @@ export function PoseExerciseFigure({ visual, exerciseId, size, animated, accent,
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [animated, motion, side, reducedMotion, detailed]);
-  const p = samplePose(motion, progress);
+  }, [animated, motion, side, reducedMotion, detailed, !!playback]);
+  const synced = playback ? repPlayback(exerciseId, playback.elapsedMs, playback.secondsPerRep) : undefined;
+  const p = samplePose(motion, reducedMotion || motion.hold ? 0 : synced?.progress ?? progress);
+  const cycleIndex = synced?.cycle ?? cycles.current;
   const has = (...names: Muscle[]) => names.some(name => motion.muscles.includes(name));
   const torsoLength = Math.hypot(p.hip.x - p.shoulder.x, p.hip.y - p.shoulder.y) || 1;
   const normal = { x: -(p.hip.y - p.shoulder.y) / torsoLength, y: (p.hip.x - p.shoulder.x) / torsoLength };
@@ -112,7 +116,7 @@ export function PoseExerciseFigure({ visual, exerciseId, size, animated, accent,
         </RadialGradient>
       </Defs>
       {detailed && <Ellipse cx={50} cy={56} rx={45} ry={42} fill={`url(#${stageGradient})`}/>}
-      <G transform={side === 'left' || (side === 'alternate' && cycles.current % 2 === 1) ? 'translate(100 0) scale(-1 1)' : undefined}>
+      <G transform={side === 'left' || (side === 'alternate' && !synced?.paired && cycleIndex % 2 === 1) ? 'translate(100 0) scale(-1 1)' : undefined}>
       <Ellipse cx={50} cy={93.4} rx={shadowWidth + 9} ry={3.5} fill={`url(#${shadowGradient})`} opacity={1 - Math.min(0.5, elevation / 20)}/>
       <Ellipse cx={50} cy={93.2} rx={shadowWidth} ry={1} fill="#03080C" opacity={0.32}/>
       <Path d="M14 93.5H86" stroke={bodyStroke} strokeOpacity={0.07} strokeWidth={0.4}/>

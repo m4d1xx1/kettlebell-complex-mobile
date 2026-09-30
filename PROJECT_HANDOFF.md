@@ -1,8 +1,54 @@
 # PROJECT HANDOFF — Fitness App
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
+
+## Latest handover — hands-free reps and minimal workout controls (2026-09-30)
+
+Base verified on GitHub main: `b2e2ccab3eba1ce245e1fd098bf194e04714587a`.
+
+- The user paused further Higgsfield generation. Keep the approved human-style
+  direction and local Goblet Squat draft for later; this change uses the existing
+  pose animations and does not publish the separate unfinished video integration.
+- Automatic exercise timing is enabled by default for new sessions. Settings has
+  an opt-out, seconds per rep (default 3, adjustable 1–10 in 0.5 increments), and
+  switch time (default 5 seconds, adjustable 0–60). Existing settings are merged
+  with defaults; existing active sessions retain their original manual behavior.
+- During rep exercises, the large number counts DOWN as each animated repetition
+  finishes. `repTiming.ts`, the label and controlled figure playback use the same
+  session elapsed milliseconds. Two-sided authored loops count each side once;
+  other loops count once per complete cycle. Static holds remain static. Reduced
+  Motion keeps a still figure while the guided counter continues.
+- Timed exercises still count down seconds. Exercise/side transitions show the
+  next movement and automatically start it after the switch countdown. Switches
+  count as rest, not work. Round rest and optional manual continue remain intact.
+- The active automatic workout shows only a small 48-point pause button at the
+  lower left (save-error recovery may also appear). Pausing reveals Resume and
+  an Exit back arrow. Exit opens the existing save-partial/discard dialog; it does
+  not discard on one tap. Manual mode retains its necessary Done/Next button.
+- Pause/background/relaunch freezes playback and countdown together. Recovery
+  requires explicit resume. Playback samples session time at up to 30 updates/sec;
+  physical iPhone smoothness/performance still needs review.
+- Automatically logged rep targets are GUIDED/ESTIMATED, not sensor-detected.
+  Results and history retain `estimatedReps`; share cards label guided reps.
+  Automatic timing is included in comparison fingerprints so manual and guided
+  sessions do not get misleading speed comparisons. Saved plans remain unchanged.
+- Validation: TypeScript, core regression suite (including automatic deadlines,
+  rep/pose synchronization, alternating sides, stale taps, zero switch time,
+  pause/recovery, manual round rest, result accounting), storage/lifecycle
+  integration and template suite pass. Expo iOS export passes (1,777 modules).
+  Actual workout components were rendered with web preview adapters at 390×844;
+  active/paused/transition states inspected and pause/Resume/Exit visibility tested.
+  This is not a physical iPhone test.
+
+First files: `src/workout/session.ts`, `src/workout/repTiming.ts`,
+`src/hooks/useWorkoutSession.ts`, `src/components/PoseExerciseFigure.tsx`,
+`app/workout.tsx`, `app/settings.tsx`.
+
+Next phone test: start a short rep workout, follow 10→9→8 through complete
+movements, pause mid-rep, resume, check left/right switches and round rest. Test
+backgrounding, partial saving and the final guided-rep summary. No new dependencies.
 
 ## Latest handover — templates and animation flow (2026-09-29)
 
