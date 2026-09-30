@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { ExerciseDefinition, WorkoutPlan } from '../types';
 import { archiveAndReset, readStored, writeStored } from '../storage/store';
-import { actOnSession, createSession, restoreSession, SessionAction, tickSession, validSession, WorkoutSession } from '../workout/session';
+import { AutoTiming, actOnSession, createSession, restoreSession, SessionAction, tickSession, validSession, WorkoutSession } from '../workout/session';
 import { monotonicNow } from '../workout/clock';
 const KEY = 'kb.activeSession.v1';
 export function useWorkoutSession(enabled: boolean) {
@@ -44,7 +44,7 @@ export function useWorkoutSession(enabled: boolean) {
     const timer = setInterval(() => {
       const s = current.current;
       if (!busy.current && s && s.phase !== 'done') commit(tickSession(s, monotonicNow()));
-    }, 200);
+    }, 1000 / 30);
     const subscription = AppState.addEventListener('change', state => {
       const s = current.current;
       if (!busy.current && s && s.phase !== 'done' && state !== 'active') commit(actOnSession(s, 'pause', monotonicNow()), true);
@@ -58,9 +58,9 @@ export function useWorkoutSession(enabled: boolean) {
       }
     };
   }, [enabled, commit, persist]);
-  const start = async (plan: WorkoutPlan, catalog: ExerciseDefinition[], manualRest: boolean) => {
+  const start = async (plan: WorkoutPlan, catalog: ExerciseDefinition[], manualRest: boolean, autoTiming?: AutoTiming) => {
     if (loading || readFailed || busy.current || current.current) return;
-    const s = createSession(plan, catalog, manualRest, monotonicNow());
+    const s = createSession(plan, catalog, manualRest, monotonicNow(), autoTiming);
     // Set synchronously to prevent rapid Start taps creating multiple sessions.
     current.current = s; acknowledged.current = false; busy.current = true;
     try { await persist(s); commit({ ...s, lastAt: monotonicNow(), paused: !mounted.current || AppState.currentState !== 'active' }, true); }

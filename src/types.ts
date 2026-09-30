@@ -58,7 +58,7 @@ export type WorkoutHistoryEntry = {
   sessionId?: string;
   status?: 'completed' | 'partial';
   timeBasis?: 'active-v1' | 'monotonic-v2';
-  results?: Array<{ round: number; index: number; exerciseId: string; name: string; equipment: 'kettlebell' | 'bodyweight'; side: SideMode | 'none'; mode: ExerciseMode; target: number; reps: number; seconds: number; workSeconds?: number; completed: boolean }>;
+  results?: Array<{ round: number; index: number; exerciseId: string; name: string; equipment: 'kettlebell' | 'bodyweight'; side: SideMode | 'none'; mode: ExerciseMode; target: number; reps: number; seconds: number; workSeconds?: number; estimatedReps?: boolean; completed: boolean }>;
   fingerprint?: string;
   workSeconds?: number;
   restSeconds?: number;
@@ -77,5 +77,8 @@ export type AppSettings = {
   countdownVoice: boolean;
   haptics: boolean;
   manualContinueAfterRest: boolean;
+  autoAdvanceExercises?: boolean;
+  secondsPerRep?: number;
+  transitionSeconds?: number;
   voiceLanguage: VoiceLanguage;
 };

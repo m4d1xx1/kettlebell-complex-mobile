@@ -142,7 +142,7 @@ export default function HistoryScreen() {
             {detail?.results?.map(r => <View key={`${r.round}:${r.index}`} style={styles.weekCard}>
               <Text style={styles.weekTitle}>Round {r.round} · {r.name}</Text>
               <Text style={styles.muted}>{r.side !== 'none' ? `${r.side} · ` : ''}{r.mode === 'reps' ? `${r.reps}/${r.target} reps` : `${formatDuration(Math.floor(r.seconds))}/${formatDuration(r.target)}`}</Text>
-              <Text style={styles.small}>{r.completed ? 'Completed' : 'Partial / skipped'}{r.workSeconds !== undefined ? ` · Work ${formatDuration(Math.round(r.workSeconds))}` : ''}</Text>
+              <Text style={styles.small}>{r.estimatedReps ? 'Guided reps · ' : ''}{r.completed ? 'Completed' : 'Partial / skipped'}{r.workSeconds !== undefined ? ` · Work ${formatDuration(Math.round(r.workSeconds))}` : ''}</Text>
             </View>)}
           </ScrollView>
         </SafeAreaView>

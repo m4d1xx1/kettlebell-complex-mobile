@@ -30,6 +30,9 @@ const defaultSettings: AppSettings = {
   countdownVoice: false,
   haptics: true,
   manualContinueAfterRest: false,
+  autoAdvanceExercises: true,
+  secondsPerRep: 3,
+  transitionSeconds: 5,
   voiceLanguage: 'en-US'
 };
 

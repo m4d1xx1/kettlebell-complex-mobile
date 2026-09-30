@@ -29,6 +29,14 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
+        <SettingRow title="Automatic exercise timer" description="Move to the next exercise without tapping. Rep targets use your chosen seconds per rep; reps are estimated, not detected." value={settings.autoAdvanceExercises ?? true} onValueChange={(autoAdvanceExercises) => updateSettings({ autoAdvanceExercises })}/>
+        {(settings.autoAdvanceExercises ?? true) && <View style={{ gap: 12, paddingBottom: 16 }}>
+          <NumberStepper label="Seconds per rep" value={settings.secondsPerRep ?? 3} min={1} max={10} step={0.5} suffix="s" onChange={(secondsPerRep) => updateSettings({ secondsPerRep })}/>
+          <NumberStepper label="Time to switch exercises" value={settings.transitionSeconds ?? 5} min={0} max={60} step={5} suffix="s" onChange={(transitionSeconds) => updateSettings({ transitionSeconds })}/>
+        </View>}
+      </View>
+
+      <View style={styles.card}>
         <SettingRow title={t('soundCues')} description={t('soundCuesHelp')} value={settings.soundCues} onValueChange={(soundCues) => updateSettings({ soundCues })}/>
         <Divider/>
         <SettingRow title={t('voiceCues')} description={t('voiceCuesHelp')} value={settings.voiceCues} onValueChange={(voiceCues) => updateSettings({ voiceCues })}/>
