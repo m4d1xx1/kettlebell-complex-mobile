@@ -48,6 +48,7 @@ async function settle(h){for(let i=0;i<40;i++){await Promise.resolve();if(h?.dir
  wall+=3600000;await advance(1000);assert.equal(hook.value.session.workMs,2000);
  wall-=7200000;await advance(1000);assert.equal(hook.value.session.workMs,3000);
  native.AppState.currentState='background';listeners.forEach(fn=>fn('background'));await settle(hook);await advance(10000);assert.equal(hook.value.session.workMs,3000);assert.equal(hook.value.session.paused,true);
+ const idleSnapshot=hook.value.session;const idleCheckpoint=memory.get('kb.activeSession.v1');await advance(10000);assert.equal(hook.value.session,idleSnapshot);assert.equal(memory.get('kb.activeSession.v1'),idleCheckpoint);
  hook.unmount();await settle();native.AppState.currentState='active';hook=harness(()=>useWorkoutSession(true));await settle(hook);assert.equal(hook.value.session.paused,true);assert.equal(hook.value.session.workMs,3000);
  hook.value.act('resume');await settle(hook);await advance(17000);assert.equal(hook.value.session.phase,'done');assert.ok(hook.value.session.finishedAt);await hook.value.acknowledge();hook.unmount();await settle();assert.equal(memory.has('kb.activeSession.v1'),false);
  // Leaving during the initial checkpoint write must persist a paused session.
@@ -57,5 +58,11 @@ async function settle(h){for(let i=0;i<40;i++){await Promise.resolve();if(h?.dir
  // Checkpoint deletion failure must remain recoverable; acknowledgement can be retried.
  let failedAck=harness(()=>useWorkoutSession(true));await settle(failedAck);await failedAck.value.start(plan,BASE_EXERCISES,false);await settle(failedAck);failedAck.value.act('finish-partial');await settle(failedAck);
  failKeys.add('kb.activeSession.v1');await assert.rejects(failedAck.value.acknowledge());assert.ok(memory.has('kb.activeSession.v1'));failKeys.clear();await failedAck.value.acknowledge();failedAck.unmount();await settle();assert.equal(memory.has('kb.activeSession.v1'),false);
- provider.unmount();console.log('PASS: concurrent provider mutations, pending results, recovery archives, deduplication, calendar jumps, background pause, remount recovery and checkpoint acknowledgement.');
+ // A pause at an automatic deadline exposes the current step, and stale rep submissions are rejected.
+ const repsPlan={...plan,items:[{key:'a',exerciseId:'swing',mode:'reps',value:2,side:'alternate'},{key:'b',exerciseId:'goblet-squat',mode:'reps',value:2,side:'alternate'}]};
+ const boundary=harness(()=>useWorkoutSession(true));await settle(boundary);await boundary.value.start(repsPlan,BASE_EXERCISES,false,{secondsPerRep:1,transitionSeconds:0});await settle(boundary);
+ mono+=5500;assert.equal(boundary.value.act('pause'),true);const frozen=boundary.value.getSession();assert.equal(frozen.index,1);assert.equal(frozen.paused,true);await settle(boundary);
+ assert.equal(boundary.value.act({type:'record-reps',reps:1,stepKey:frozen.steps[0].stepKey,round:1,endWorkout:true}),false);await settle(boundary);assert.equal(boundary.value.session.phase,'exercise');
+ mono+=600;assert.equal(boundary.value.act({type:'record-reps',reps:1,stepKey:frozen.steps[1].stepKey,round:1,endWorkout:true}),true);await settle(boundary);assert.equal(boundary.value.session.phase,'done');assert.equal(boundary.value.session.results[1].reps,1);await boundary.value.discard();boundary.unmount();await settle();
+ provider.unmount();console.log('PASS: concurrent provider mutations, pending results, recovery archives, deduplication, calendar jumps, idle pauses, deadline rep entry, background pause, remount recovery and checkpoint acknowledgement.');
 })().catch(error=>{console.error(error);process.exitCode=1});

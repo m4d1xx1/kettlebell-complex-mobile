@@ -1,15 +1,17 @@
+import { AppSwitch } from '../src/components/AppSwitch';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Dropdown } from '../src/components/Dropdown';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { categoryLabel, useI18n } from '../src/i18n';
 import { ExerciseCategory, ExerciseMode } from '../src/types';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 
 export default function CustomExerciseScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const { addCustomExercise } = useWorkout();
   const { t, language } = useI18n();
   const creating = useRef(false);
@@ -32,7 +34,7 @@ export default function CustomExerciseScreen() {
   return (
     <ScrollView contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled">
       <Text style={styles.label}>{t('exerciseName')}</Text>
-      <TextInput value={name} onChangeText={setName} maxLength={40} placeholder="Bottom-up Press" placeholderTextColor={colors.muted} style={styles.input}/>
+      <TextInput selectionColor={colors.muted} cursorColor={colors.text} value={name} onChangeText={setName} maxLength={40} placeholder="Bottom-up Press" placeholderTextColor={colors.muted} style={styles.input}/>
 
       <Dropdown label="Equipment" value={equipment} options={[{ value: 'kettlebell', label: 'Kettlebell', color: colors.accent }, { value: 'bodyweight', label: 'Bodyweight', color: colors.bodyweight }]} onChange={value => setEquipment(value === 'bodyweight' ? 'bodyweight' : 'kettlebell')}/>
       <Text style={styles.label}>{t('category')}</Text>
@@ -42,7 +44,7 @@ export default function CustomExerciseScreen() {
       <SegmentedControl value={mode} options={modes} onChange={setMode}/>
 
       <View style={styles.targetRow}>
-        <TextInput value={value} onChangeText={setValue} keyboardType="number-pad" style={styles.numberInput}/>
+        <TextInput selectionColor={colors.muted} cursorColor={colors.text} value={value} onChangeText={setValue} keyboardType="number-pad" style={styles.numberInput}/>
         <Text style={styles.targetUnit}>{mode === 'reps' ? t('reps').toLowerCase() : t('seconds')}</Text>
       </View>
 
@@ -51,7 +53,7 @@ export default function CustomExerciseScreen() {
           <Text style={styles.switchTitle}>{t('unilateralMovement')}</Text>
           <Text style={styles.help}>{t('unilateralHelp')}</Text>
         </View>
-        <Switch value={unilateral} onValueChange={setUnilateral} trackColor={{ false: colors.border, true: colors.accentSoft }} thumbColor={unilateral ? colors.accent : colors.muted}/>
+        <AppSwitch accessibilityLabel="Train each side separately" value={unilateral} onValueChange={setUnilateral}/>
       </View>
 
       <PrimaryButton
@@ -71,7 +73,7 @@ export default function CustomExerciseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { padding: 16, gap: 12, backgroundColor: colors.bg },
   label: { color: colors.muted, fontSize: 12, fontWeight: '900', marginTop: 6 },
   input: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.text, paddingHorizontal: 15, fontSize: 16 },

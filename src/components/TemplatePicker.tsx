@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useWorkout } from '../context/WorkoutContext';
 import { PRESETS, PresetId, createPresetPlan } from '../data/presets';
-import { colors, radius } from '../theme';
+import { useThemeStyles, ThemeColors, radius } from '../theme';
 import { Difficulty } from '../types';
 import { calculatePlanStats } from '../workout/steps';
 import { Dropdown } from './Dropdown';
@@ -12,6 +12,7 @@ import { timingFromSettings } from '../workout/timing';
 const estimateLabel = (seconds: number) => `About ${Math.max(1, Math.round(seconds / 60))} min`;
 
 export function TemplatePicker() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const { exercises, settings, plan, loadPreset } = useWorkout();
   const [open, setOpen] = useState(false);
   const [equipment, setEquipment] = useState<'kettlebell' | 'bodyweight'>('kettlebell');
@@ -94,7 +95,7 @@ export function TemplatePicker() {
   </View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { gap: 10 },
   header: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel },
   heading: { flex: 1, gap: 4 }, title: { color: colors.text, fontSize: 17, fontWeight: '900' },

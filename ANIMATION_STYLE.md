@@ -1,18 +1,20 @@
 # DAYBRAVE exercise animation style
 
-The filled silhouette, coral muscle zones and equipment colors were approved on
-2026-09-29. The same day, the user requested smoother flow and improved graphics
-across both kettlebell and bodyweight exercises. This document describes the
-current implementation; earlier forearm-only rig notes are superseded.
+The filled silhouette and flow were developed on 2026-09-29. On 2026-10-05 the
+user replaced equipment colours and coral muscle zones with system-driven
+monochrome. This document describes the current implementation; earlier colour
+rules and forearm-only rig notes are superseded.
 
 ## Visual rules
 
 - Filled, tapered silhouettes with a connected neck and recognizable limbs.
-- Cyan `#55C7FF` bodyweight; light loaded figures and lime `#B8F23B` kettlebells.
-- Coral `#E96B73` marks schematic muscle focus, never measured activation.
+- Both equipment types use grayscale, with dark silhouettes in light mode and
+  light silhouettes in dark mode. Equipment is identified by text and bell presence.
+- Contrasting light/dark patches mark schematic muscle focus, never measured
+  activation. The detail legend names the muscles without relying on colour.
 - Large figures use soft surface gradients, restrained rim highlights and a subtle
   accent backdrop. Small figures keep simpler flat body fills for readability.
-- Far-side limbs are dimmer to communicate depth. Muscle color still means focus.
+- Far-side limbs are dimmer to communicate depth. Contrasting patches mean focus.
 - Kettlebells have a rounded body, shaped handle, highlight and darker underside.
   The handle follows the hand; front/back transitions cross-fade through depth.
 - Feet have a defined shape; the floor has a soft, height-sensitive contact shadow.
@@ -43,7 +45,7 @@ current implementation; earlier forearm-only rig notes are superseded.
 - `src/animation/exercisePoses.ts`: authored poses, timing, equipment and muscle focus.
 - `src/animation/bodyRig.ts`: fixed-length IK and cached continuous interpolation.
 - `src/components/PoseExerciseFigure.tsx`: playback, figure surfaces, bell and shadow.
-- `src/components/ExerciseGlyph.tsx`: equipment colors and shared wrapper.
+- `src/components/ExerciseGlyph.tsx`: theme-aware fills and shared wrapper.
 - Builder, library, detail and fullscreen workout all pass the exercise ID.
 
 ## Coverage

@@ -3,8 +3,9 @@ import { useFocusEffect, router } from 'expo-router';
 import { Pressable, Text } from 'react-native';
 import { readStored } from '../storage/store';
 import { validSession, WorkoutSession } from '../workout/session';
-import { colors } from '../theme';
+import { useThemeColors } from '../theme';
 export function ResumeWorkoutNotice() {
+  const colors = useThemeColors();
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [failed, setFailed] = useState(false);
   useFocusEffect(useCallback(() => {

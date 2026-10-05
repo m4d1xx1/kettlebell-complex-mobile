@@ -2,9 +2,10 @@ import { AutoTiming } from '../workout/session';
 import { Text, View } from 'react-native';
 import { WorkoutPlan } from '../types';
 import { WorkoutStep, calculatePlanStats } from '../workout/steps';
-import { colors } from '../theme';
+import { useThemeColors } from '../theme';
 import { formatDuration } from '../utils/format';
 export function WorkoutOverview({ plan, steps, manualRest, autoTiming }: {plan:WorkoutPlan;steps:WorkoutStep[];manualRest:boolean;autoTiming?:AutoTiming}) {
+  const colors = useThemeColors();
   const catalog=steps.map(s=>s.exercise);
   const stats=calculatePlanStats(plan,catalog,autoTiming);
   return <View style={{gap:12,paddingVertical:16}}>

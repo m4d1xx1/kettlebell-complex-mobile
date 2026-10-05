@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { colors, radius } from '../theme';
+import { useThemeStyles, ThemeColors, radius } from '../theme';
 import { BodyweightSummaryItem } from '../workout/steps';
 import { formatDuration } from '../utils/format';
 import { BrandMark } from './BrandMark';
@@ -37,6 +37,7 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
   bodyweightSeconds,
   bodyweightItems
 }, ref) {
+  const { colors, styles: baseStyles } = useThemeStyles(createStyles);
   const { width } = useWindowDimensions();
   const factor = Math.min(1, Math.max(0.5, (width - 28) / 400));
   const scaled = (style: Record<string, unknown>) => Object.fromEntries(Object.entries(style).map(([key,value]) => [key, typeof value === 'number' && /^(fontSize|lineHeight|letterSpacing|padding.*|margin.*|gap|borderRadius|width|height)$/.test(key) ? value * factor : value]));
@@ -99,6 +100,7 @@ export const WorkoutShareCard = forwardRef<View, Props>(function WorkoutShareCar
 });
 
 function ShareStat({ label, value, bodyweight = false }: { label: string; value: string; bodyweight?: boolean }) {
+  const { colors, styles: baseStyles } = useThemeStyles(createStyles);
   const { width } = useWindowDimensions();
   const factor = Math.min(1, Math.max(0.5, (width - 28) / 400));
   const styles = { ...baseStyles, stat: { ...baseStyles.stat, paddingVertical:10*factor, paddingHorizontal:10*factor }, statLabel: { ...baseStyles.statLabel, fontSize:8*factor }, statValue: { ...baseStyles.statValue, fontSize:18*factor, marginTop:3*factor } };
@@ -110,7 +112,7 @@ function ShareStat({ label, value, bodyweight = false }: { label: string; value:
   );
 }
 
-const baseStyles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     width: '100%',
     aspectRatio: 9 / 16,

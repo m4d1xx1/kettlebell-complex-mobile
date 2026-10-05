@@ -8,9 +8,10 @@ import { PrimaryButton } from '../src/components/PrimaryButton';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { localizedExerciseCopy } from '../src/data/exerciseCopy';
 import { categoryLabel, difficultyLabel, useI18n } from '../src/i18n';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 
 export default function ExerciseDetailScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const params = useLocalSearchParams<{ id?: string }>();
   const { plan, exercises, toggleExerciseSelection, favoriteExerciseIds, toggleExerciseFavorite } = useWorkout();
   const { t, language } = useI18n();
@@ -38,7 +39,7 @@ export default function ExerciseDetailScreen() {
         <ExerciseGlyph exerciseId={exercise.id} visual={exercise.visual} size={240} animated hero equipment={exercise.equipment ?? 'kettlebell'}/>
         {highlightedMuscles.length > 0 && (
           <View style={styles.muscleLegend}>
-            <Text style={styles.muscleLegendTitle}>RED · MUSCLE FOCUS</Text>
+            <Text style={styles.muscleLegendTitle}>CONTRAST AREAS · MUSCLE FOCUS</Text>
             <Text style={styles.muscleLegendText}>{highlightedMuscles.join(' · ')}</Text>
           </View>
         )}
@@ -106,15 +107,16 @@ export default function ExerciseDetailScreen() {
 }
 
 function Meta({ label, value }: { label: string; value: string }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return <View style={styles.metaItem}><Text style={styles.metaLabel}>{label}</Text><Text style={styles.metaValue}>{value}</Text></View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { padding: 18, paddingBottom: 40, backgroundColor: colors.bg, gap: 20 },
   missing: { flex: 1, padding: 20, justifyContent: 'center', gap: 20, backgroundColor: colors.bg },
   hero: { alignItems: 'center', gap: 16 },
   muscleLegend: { alignItems: 'center', gap: 4, paddingHorizontal: 12 },
-  muscleLegendTitle: { color: '#E96B73', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  muscleLegendTitle: { color: colors.text, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   muscleLegendText: { color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 18 },
   heroText: { alignItems: 'center', gap: 7 },
   badges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },

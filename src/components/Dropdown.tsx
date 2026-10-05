@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { colors, radius } from '../theme';
+import { useThemeStyles, ThemeColors, radius } from '../theme';
 
 export type DropdownOption = { value: string; label: string; color?: string };
 export function Dropdown({ label, value, placeholder, options, onChange }: {
   label: string; value?: string; placeholder?: string; options: DropdownOption[]; onChange: (value: string) => void;
 }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   const [open, setOpen] = useState(false);
   const selected = options.find(option => option.value === value);
   return (
@@ -23,7 +24,7 @@ export function Dropdown({ label, value, placeholder, options, onChange }: {
     </View>
   );
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   trigger: { minHeight: 64, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.panel },
   title: { flex: 1 }, label: { color: colors.muted, fontSize: 11, marginBottom: 4 }, value: { color: colors.text, fontSize: 16, fontWeight: '800' }, arrow: { color: colors.muted, fontSize: 22 },
   menu: { maxHeight: 264, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginTop: 6, backgroundColor: colors.card },

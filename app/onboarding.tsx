@@ -1,15 +1,17 @@
+import { AppSwitch } from '../src/components/AppSwitch';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandMark } from '../src/components/BrandMark';
 import { NumberStepper } from '../src/components/NumberStepper';
 import { PrimaryButton } from '../src/components/PrimaryButton';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { translate } from '../src/i18n';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 
 export default function OnboardingScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const { settings, updateSettings, setPlan } = useWorkout();
   const [step, setStep] = useState(0);
   const [weight, setWeight] = useState(settings.defaultWeightKg);
@@ -110,22 +112,24 @@ export default function OnboardingScreen() {
 }
 
 function CueRow({ title, body, value, onChange }: { title: string; body: string; value: boolean; onChange: (value: boolean) => void }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return (
     <View style={styles.cueRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.cueTitle}>{title}</Text>
         <Text style={styles.cueBody}>{body}</Text>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ false: colors.border, true: colors.accentSoft }} thumbColor={value ? colors.accent : colors.muted}/>
+      <AppSwitch accessibilityLabel={title} value={value} onValueChange={onChange}/>
     </View>
   );
 }
 
 function Divider() {
+  const { colors, styles } = useThemeStyles(createStyles);
   return <View style={styles.divider}/>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   page: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 },
   scroller: { flex: 1 },

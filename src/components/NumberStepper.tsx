@@ -1,11 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, radius } from '../theme';
+import { useThemeStyles, ThemeColors, radius } from '../theme';
 import { clamp } from '../utils/format';
 
 export function NumberStepper({ label, value, min, max, step = 1, suffix, onChange, haptics = true }: { label: string; value: number; min: number; max: number; step?: number; suffix?: string; onChange: (value: number) => void; haptics?: boolean }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   const adjust = (delta: number) => {
-    if (haptics) Haptics.selectionAsync();
+    if (haptics) void Haptics.selectionAsync().catch(() => undefined);
     onChange(clamp(value + delta, min, max));
   };
   return (
@@ -20,7 +21,7 @@ export function NumberStepper({ label, value, min, max, step = 1, suffix, onChan
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { flex: 1, minWidth: 200, backgroundColor: colors.panel, padding: 14, borderRadius: radius.lg },
   label: { color: colors.muted, fontSize: 12, fontWeight: '800', marginBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

@@ -1,11 +1,13 @@
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppSwitch } from '../src/components/AppSwitch';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NumberStepper } from '../src/components/NumberStepper';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useWorkoutCues } from '../src/hooks/useWorkoutCues';
 import { useI18n } from '../src/i18n';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 
 export default function SettingsScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const { settings, updateSettings } = useWorkout();
   const { t } = useI18n();
   const cues = useWorkoutCues(settings);
@@ -16,6 +18,11 @@ export default function SettingsScreen() {
         <Text style={styles.kicker}>{t('settings').toUpperCase()}</Text>
         <Text style={styles.title}>{t('eyesOnBell')}</Text>
         <Text style={styles.muted}>{t('configureSignals')}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Appearance</Text>
+        <Text style={styles.note}>Black and white · Follows your device’s light or dark mode.</Text>
       </View>
 
       <View style={styles.section}>
@@ -68,13 +75,14 @@ export default function SettingsScreen() {
 function SettingRow({ title, description, value, onValueChange, disabled = false }: {
   title: string; description: string; value: boolean; onValueChange: (value: boolean) => void; disabled?: boolean;
 }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return (
     <View style={[styles.row, disabled && { opacity: 0.45 }]}>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowTitle}>{title}</Text>
         <Text style={styles.rowDescription}>{description}</Text>
       </View>
-      <Switch accessibilityLabel={title} disabled={disabled} value={value} onValueChange={onValueChange} trackColor={{ false: colors.border, true: colors.accentSoft }} thumbColor={value ? colors.accent : colors.muted}/>
+      <AppSwitch accessibilityLabel={title} disabled={disabled} value={value} onValueChange={onValueChange}/>
     </View>
   );
 }
@@ -82,6 +90,7 @@ function SettingRow({ title, description, value, onValueChange, disabled = false
 function CheckboxSettingRow({ title, description, value, onValueChange }: {
   title: string; description: string; value: boolean; onValueChange: (value: boolean) => void;
 }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="checkbox"
@@ -100,9 +109,10 @@ function CheckboxSettingRow({ title, description, value, onValueChange }: {
   );
 }
 
-function Divider() { return <View style={styles.divider}/>; }
+function Divider() {
+  const { colors, styles } = useThemeStyles(createStyles); return <View style={styles.divider}/>; }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { padding: 16, paddingBottom: 40, backgroundColor: colors.bg, gap: 18 },
   intro: { gap: 5, paddingVertical: 4 },
   kicker: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },

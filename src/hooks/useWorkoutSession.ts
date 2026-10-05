@@ -43,7 +43,8 @@ export function useWorkoutSession(enabled: boolean) {
     if (!enabled) return;
     const timer = setInterval(() => {
       const s = current.current;
-      if (!busy.current && s && s.phase !== 'done') commit(tickSession(s, monotonicNow()));
+      // Idle time is accounted for by the next action, without rendering/writing at 30 Hz.
+      if (!busy.current && s && s.phase !== 'done' && !s.paused && !s.waiting) commit(tickSession(s, monotonicNow()));
     }, 1000 / 30);
     const subscription = AppState.addEventListener('change', state => {
       const s = current.current;
@@ -75,7 +76,15 @@ export function useWorkoutSession(enabled: boolean) {
     if (advances && (now - lastAction.current < 500 || s?.index !== session?.index || s?.round !== session?.round || s?.phase !== session?.phase)) return false;
     if (advances) lastAction.current = now;
     if (!s) return false;
-    commit(actOnSession(s, action, now), true);
+    if (typeof action === 'object') {
+      const advanced = tickSession(s, now);
+      const step = advanced.steps[advanced.index];
+      if (advanced.phase !== 'exercise' || step.mode !== 'reps' || step.stepKey !== action.stepKey || advanced.round !== action.round || !Number.isInteger(action.reps) || action.reps < 0 || action.reps > step.value) {
+        commit(advanced, true); return false;
+      }
+    }
+    const next = actOnSession(s, action, now);
+    commit(next, true);
     return true;
   }, [commit, session?.index, session?.round, session?.phase]);
   const discard = async () => {
@@ -94,5 +103,6 @@ export function useWorkoutSession(enabled: boolean) {
   };
   const recover = async () => { await archiveAndReset(KEY); await load(); };
   const retrySave = async () => { if (current.current) await persist(current.current); };
-  return { session, loading, error, readFailed, start, act, discard, acknowledge, retrySave, retryLoad: load, recover };
+  const getSession = useCallback(() => current.current, []);
+  return { session, loading, error, readFailed, start, act, getSession, discard, acknowledge, retrySave, retryLoad: load, recover };
 }

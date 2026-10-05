@@ -4,6 +4,60 @@ Last updated: 2026-10-05
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
 
+## Latest draft audit (2026-10-05)
+
+- Second pass: saved-workout loading and history repeat confirm before replacing
+  a nonempty builder. Saved deletion requires confirmation; history is retained.
+- Saved cards label bodyweight plans as Bodyweight instead of displaying a
+  misleading external weight. Pin/delete/history controls have 44-point minimum
+  touch targets and named accessibility actions. Optional stepper haptic failures
+  are caught. Regression tests exercise saved load cancellation/confirmation,
+  bodyweight labelling and confirmed deletion.
+- Paused/manual-wait sessions no longer render or write checkpoints at 30 Hz.
+  The next action still accounts for the entire idle interval as pause time.
+- Rep entry reads the synchronous paused session, preventing a deadline from
+  opening the previous exercise's form. Invalid/stale rep actions report failure.
+- Done-screen exit waits for durable result storage and checkpoint acknowledgement;
+  failed saves require retry rather than silently leaving the results screen.
+- Android back handling subscribes once, and history comparisons run only at completion.
+- Typecheck, core and integration checks pass, including idle checkpoint stability
+  and automatic-deadline rep entry. Native device, audio, accessibility font scaling
+  and real launcher branding still need a phone acceptance pass.
+
+## Latest decision — system-driven monochrome (2026-10-05)
+
+The user explicitly replaced the earlier lime/cyan/coral rule with a black-and-white
+app following the phone's system appearance. This decision supersedes the colour
+instructions below and in the uploaded GitHub brief. English UI, workout timing,
+fullscreen flow, summaries and share cards are preserved.
+
+- `src/theme.ts` has grayscale light/dark palettes and subscribing hooks. Styles
+  are theme factories, not frozen module-level colours; changing appearance does
+  not remount screens or reset session state. Missing appearance falls back to light.
+- All screens, modal contents, navigation theme, status bar, figures, switches and
+  share cards adapt. Equipment is labelled in words; muscle focus uses contrasting
+  patches with a corrected legend. System-owned alerts/keyboards retain OS behavior.
+- Header/share-card branding uses a scalable SVG interpretation of the selected
+  monochrome D concept. This does not change the installed launcher icon/native IDs.
+- `userInterfaceStyle` is automatic. Added SDK-aligned `expo-system-ui ~57.0.4`
+  and its plugin; the root native background follows the palette. A new native
+  development/release build is needed for changed native appearance configuration;
+  an OTA-only update is not sufficient for older development binaries.
+- Tests: TypeScript; core, integration, template, motion and new theme suite;
+  iOS bundle export. Theme tests check grayscale tokens, 4.5:1 text pairs and
+  3:1 switch contrast. Web/native-adapter checks cover 10 screens and 5 workout
+  states at 320/390px in both modes, plus live switching with search/paused-session
+  state preserved. This is NOT a physical phone or native screen-reader test.
+- Online Expo dependency check hit a proxy timeout; the offline bundled-SDK
+  dependency check passed. Do not describe that as an online doctor pass.
+- Work is stacked on product review draft PR #2, itself on timer draft PR #1.
+  No main merge, deployment, Higgsfield generation or legacy video edits.
+
+Phone acceptance: toggle system dark/light while editing and mid-pass, verify
+unchanged rep count/pose, pause/resume, legible figures, keyboard/modal appearance,
+and a saved/shared summary in both themes. Check launch/background flashes and
+Android navigation bar separately on real hardware.
+
 ## Product review and first UX/reliability slice (2026-10-05)
 
 This work is based on draft hands-free PR #1, not a claim that it has merged into

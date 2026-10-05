@@ -1,9 +1,10 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, radius } from '../theme';
+import { useThemeStyles, ThemeColors, radius } from '../theme';
 
 type Props = { label: string; onPress: () => void; disabled?: boolean; compact?: boolean };
 
 export function PrimaryButton({ label, onPress, disabled, compact }: Props) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return (
     <Pressable
       accessibilityRole="button"
@@ -17,7 +18,7 @@ export function PrimaryButton({ label, onPress, disabled, compact }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: { minHeight: 58, borderRadius: radius.lg, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18, paddingVertical:14 },
   compact: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: 14 },
   text: { textAlign: 'center', flexShrink:1, color: colors.accentText, fontSize: 17, fontWeight: '900' },
