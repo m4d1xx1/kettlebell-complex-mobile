@@ -7,6 +7,7 @@ import { colors, radius } from '../theme';
 import { Difficulty } from '../types';
 import { calculatePlanStats } from '../workout/steps';
 import { Dropdown } from './Dropdown';
+import { timingFromSettings } from '../workout/timing';
 
 const estimateLabel = (seconds: number) => `About ${Math.max(1, Math.round(seconds / 60))} min`;
 
@@ -20,7 +21,8 @@ export function TemplatePicker() {
   const available = useMemo(() => PRESETS.filter(preset => preset.equipment === equipment && (difficulty === 'all' || preset.difficulty === difficulty)), [equipment, difficulty]);
   const selected = available.find(preset => preset.id === selectedId);
   const preview = useMemo(() => selected ? createPresetPlan(selected, settings.defaultWeightKg) : undefined, [selected, settings.defaultWeightKg]);
-  const stats = useMemo(() => preview ? calculatePlanStats(preview, exercises) : undefined, [preview, exercises]);
+  const timing = useMemo(() => timingFromSettings(settings), [settings.autoAdvanceExercises, settings.secondsPerRep, settings.transitionSeconds]);
+  const stats = useMemo(() => preview ? calculatePlanStats(preview, exercises, timing) : undefined, [preview, exercises, timing]);
   const loadSelected = () => {
     if (!selected) return;
     const apply = () => { loadPreset(selected.id); setOpen(false); setSelectedId(undefined); };
@@ -54,7 +56,7 @@ export function TemplatePicker() {
         <Pressable accessibilityRole="button" onPress={() => setDifficulty('all')} style={styles.reset}><Text style={[styles.resetText, { color: accent }]}>Show all levels</Text></Pressable>
       </View> : <Dropdown label={`${available.length} templates`} placeholder="Choose a workout to preview" value={selectedId} options={available.map(preset => ({
         value: preset.id,
-        label: `${preset.name} · ${estimateLabel(calculatePlanStats(createPresetPlan(preset, settings.defaultWeightKg), exercises).estimatedSeconds)}`,
+        label: `${preset.name} · ${estimateLabel(calculatePlanStats(createPresetPlan(preset, settings.defaultWeightKg), exercises, timing).estimatedSeconds)}`,
         color: accent
       }))} onChange={value => setSelectedId(value as PresetId)}/>}
       {selected && preview && stats && <View style={[styles.preview, { borderColor: accent }]}>

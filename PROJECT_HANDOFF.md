@@ -1,8 +1,27 @@
 # PROJECT HANDOFF — Fitness App
 
-Last updated: 2026-09-30
+Last updated: 2026-10-05
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
+
+## Product review and first UX/reliability slice (2026-10-05)
+
+This work is based on draft hands-free PR #1, not a claim that it has merged into
+main. See `PRODUCT_REVIEW_2026-10-05.md` for evidence, remaining risks and pilot gates.
+Higgsfield spending/generation remains paused. No unfinished video files included.
+
+- Unified automatic duration estimates across home, quick workouts, templates and
+  review; initial countdown, side switches and round rest are included. Quick
+  workouts choose the closest whole-round dose using the selected pace.
+- Home has an early Review & start card; review still precedes countdown. Existing
+  editor/templates/saved access, English UI and lime/cyan identity remain.
+- Larger labelled controls and wrapping selected segments; visual save confirmation.
+- Failed settings save no longer advances onboarding; duplicate finish taps guarded.
+- History totals disclose guided estimates. No sensor-counting claims.
+- Product direction is a hypothesis: short low-friction sessions for busy returning
+  exercisers, one kettlebell plus bodyweight fallback. No market fit established.
+- Physical-phone, accessibility and qualified technique review remain required.
+
 
 ## Latest handover — hands-free reps and minimal workout controls (2026-09-30)
 

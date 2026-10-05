@@ -4,7 +4,7 @@ import { UndoNotice } from '../src/components/UndoNotice';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { TemplatePicker } from '../src/components/TemplatePicker';
 import { BrandMark } from '../src/components/BrandMark';
@@ -18,6 +18,7 @@ import { ComplexItem, ExerciseMode, SideMode } from '../src/types';
 import { colors, radius } from '../src/theme';
 import { calculatePlanStats } from '../src/workout/steps';
 import { formatDuration } from '../src/utils/format';
+import { timingFromSettings } from '../src/workout/timing';
 
 export default function BuilderScreen() {
   const {
@@ -25,7 +26,8 @@ export default function BuilderScreen() {
     saveCurrent, settings, applyProfileDefaults
   } = useWorkout();
   const { t, language } = useI18n();
-  const stats = useMemo(() => calculatePlanStats(plan, exercises), [plan, exercises]);
+  const timing = useMemo(() => timingFromSettings(settings), [settings.autoAdvanceExercises, settings.secondsPerRep, settings.transitionSeconds]);
+  const stats = useMemo(() => calculatePlanStats(plan, exercises, timing), [plan, exercises, timing]);
   const hasKettlebell = useMemo(
     () => plan.items.some((item) => exercises.find((exercise) => exercise.id === item.exerciseId)?.equipment !== 'bodyweight'),
     [plan.items, exercises]
@@ -69,7 +71,7 @@ export default function BuilderScreen() {
                 <Text style={styles.itemName}>{index + 1}. {exercise.name}</Text>
                 <Text style={[styles.itemCategory, exercise.equipment === 'bodyweight' && styles.bodyweightText]}>{exercise.equipment === 'bodyweight' ? 'Bodyweight · ' : ''}{categoryLabel(language, exercise.category)}</Text>
               </Pressable>
-              <Pressable accessibilityLabel={t('delete')} onPress={() => removeItem(item.key)} style={styles.deleteButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${exercise.name}`} onPress={() => removeItem(item.key)} style={styles.deleteButton}>
                 <Text style={styles.deleteText}>×</Text>
               </Pressable>
             </View>
@@ -79,10 +81,10 @@ export default function BuilderScreen() {
                 <SegmentedControl value={item.mode} options={modeOptions} onChange={(mode) => updateItem(item.key, { mode })}/>
               </View>
               <View style={styles.valuePill}>
-                <Pressable onPress={() => updateItem(item.key, { value: Math.max(1, item.value - (item.mode === 'time' ? 5 : 1)) })} style={styles.mini}><Text style={styles.miniText}>−</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Decrease ${exercise.name} ${item.mode}`} disabled={item.value <= 1} accessibilityState={{ disabled: item.value <= 1 }} onPress={() => updateItem(item.key, { value: Math.max(1, item.value - (item.mode === 'time' ? 5 : 1)) })} style={styles.mini}><Text style={styles.miniText}>−</Text></Pressable>
                 <Text style={styles.valueText}>{item.value}</Text>
                 <Text style={styles.valueUnit}>{item.mode === 'reps' ? t('reps').toLowerCase() : t('sec')}</Text>
-                <Pressable onPress={() => updateItem(item.key, { value: Math.min(300, item.value + (item.mode === 'time' ? 5 : 1)) })} style={styles.mini}><Text style={styles.miniText}>+</Text></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Increase ${exercise.name} ${item.mode}`} disabled={item.value >= 300} accessibilityState={{ disabled: item.value >= 300 }} onPress={() => updateItem(item.key, { value: Math.min(300, item.value + (item.mode === 'time' ? 5 : 1)) })} style={styles.mini}><Text style={styles.miniText}>+</Text></Pressable>
               </View>
             </View>
 
@@ -112,7 +114,7 @@ export default function BuilderScreen() {
           <View style={styles.hero}>
             <View style={{ flex: 1, minWidth: 200 }}>
               <BrandMark compact/>
-              <TextInput value={plan.name} onChangeText={(name) => setPlan((p) => ({ ...p, name }))} maxLength={40} style={styles.nameInput}/>
+              <TextInput accessibilityLabel="Workout name" value={plan.name} onChangeText={(name) => setPlan((p) => ({ ...p, name }))} maxLength={40} style={styles.nameInput}/>
             </View>
             <View style={styles.topActions}>
               <Pressable onPress={() => router.push('/history')} style={styles.topButton}><Text style={styles.topButtonText}>{t('history')}</Text></Pressable>
@@ -122,6 +124,17 @@ export default function BuilderScreen() {
 
           <ResumeWorkoutNotice/>
           <UndoNotice/>
+          {plan.items.length > 0 ? <View style={styles.startCard}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Ready when you are</Text>
+            <Text style={styles.startMeta}>About {formatDuration(stats.estimatedSeconds)} · {plan.rounds} rounds · {plan.items.length} exercises</Text>
+            <Text style={styles.muted}>{timing ? 'Follow the pace. Reps and exercise switches run automatically.' : 'Your own pace. Tap to finish each rep exercise.'}</Text>
+            <PrimaryButton label="Review & start" onPress={() => router.push('/workout')}/>
+            <Text style={styles.muted}>Check your movements{hasKettlebell ? ' and weight' : ''} before the countdown. Edit your workout below.</Text>
+          </View> : <View style={styles.startCard}>
+            <Text accessibilityRole="header" style={styles.sectionTitle}>Make time for a short workout</Text>
+            <Text style={styles.startMeta}>One kettlebell, or just you.</Text>
+            <Text style={styles.muted}>Choose a quick workout below. Review it, then follow the pace.</Text>
+          </View>}
           <QuickStart/>
           <TemplatePicker/>
           <Pressable accessibilityRole="button" style={styles.preset} onPress={() => router.push('/saved')}><Text style={styles.presetText}>{t('saved')}</Text></Pressable>
@@ -169,12 +182,13 @@ export default function BuilderScreen() {
             )}
           </View>
 
-          <PrimaryButton label={t('startWorkout')} disabled={!plan.items.length} onPress={() => router.push('/workout')}/>
+          <PrimaryButton label="Review & start" disabled={!plan.items.length} onPress={() => router.push('/workout')}/>
           <Pressable
             disabled={!plan.items.length}
             onPress={async () => {
               const didSave = await saveCurrent();
               if (didSave && settings.haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              if (didSave) Alert.alert('Workout saved', 'Find it in Saved workouts whenever you want to repeat it.');
             }}
             style={styles.save}
           >
@@ -190,6 +204,8 @@ const styles = StyleSheet.create({
   loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, backgroundColor: colors.bg, gap: 10, paddingBottom: 30 },
   headerBlock: { gap: 16, marginBottom: 10 },
+  startCard: { padding: 18, gap: 12, backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
+  startMeta: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '700' },
   hero: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
   eyebrow: { color: colors.accent, fontWeight: '900', letterSpacing: 1.4, fontSize: 11 },
   nameInput: { color: colors.text, fontSize: 29, fontWeight: '900', padding: 0, marginTop: 3 },
@@ -216,12 +232,12 @@ const styles = StyleSheet.create({
   itemTitleText: { flex: 1, minWidth: 0 },
   itemName: { color: colors.text, fontSize: 15, fontWeight: '900', flexShrink: 1 },
   itemCategory: { color: colors.muted, fontSize: 10, fontWeight: '800', marginTop: 2 },
-  deleteButton: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  deleteButton: { width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   deleteText: { color: colors.danger, fontSize: 20, fontWeight: '900', lineHeight: 22 },
   settingRow: { marginTop: 9, flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   modeControl: { flexGrow: 1, flexShrink: 1, minWidth: 132 },
   valuePill: { flexDirection: 'row', alignItems: 'center', minHeight: 41, minWidth: 122, alignSelf: 'flex-start', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel, paddingHorizontal: 3 },
-  mini: { width: 30, height: 34, alignItems: 'center', justifyContent: 'center' },
+  mini: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   miniText: { color: colors.text, fontSize: 19, fontWeight: '800' },
   valueText: { color: colors.text, fontSize: 16, fontWeight: '900', minWidth: 24, textAlign: 'center' },
   valueUnit: { color: colors.muted, fontSize: 10, fontWeight: '700', marginHorizontal: 3 },

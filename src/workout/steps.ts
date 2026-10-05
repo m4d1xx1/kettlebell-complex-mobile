@@ -1,4 +1,5 @@
 import { ExerciseDefinition, SideMode, WorkoutPlan } from '../types';
+import type { AutoTiming } from './session';
 
 export type WorkoutStep = {
   stepKey: string;
@@ -44,14 +45,18 @@ export function buildRoundSteps(plan: WorkoutPlan, catalog: ExerciseDefinition[]
   return steps;
 }
 
-export function calculatePlanStats(plan: WorkoutPlan, catalog: ExerciseDefinition[]) {
+export function calculatePlanStats(plan: WorkoutPlan, catalog: ExerciseDefinition[], autoTiming?: AutoTiming) {
   const steps = buildRoundSteps(plan, catalog);
   const repsPerRound = steps.filter((x) => x.mode === 'reps').reduce((sum, x) => sum + x.value, 0);
   const loadedRepsPerRound = steps
     .filter((x) => x.mode === 'reps' && x.exercise.equipment !== 'bodyweight')
     .reduce((sum, x) => sum + x.value, 0);
   const timedSecondsPerRound = steps.filter((x) => x.mode === 'time').reduce((sum, x) => sum + x.value, 0);
-  const estimatedWorkSecondsPerRound = steps.reduce((sum, x) => sum + (x.mode === 'time' ? x.value : x.value * 2.6), 0);
+  const estimatedWorkSecondsPerRound = steps.reduce((sum, x) => sum + (x.mode === 'time' ? x.value : x.value * (autoTiming?.secondsPerRep ?? 2.6)), 0);
+  // Round rest replaces a switch; without round rest, the next round gets a switch.
+  // Include the initial three-second countdown, but not user pauses/manual waits.
+  const switchCount = Math.max(0, steps.length - 1) * plan.rounds
+    + (plan.restSeconds === 0 ? Math.max(0, plan.rounds - 1) : 0);
   const totalReps = repsPerRound * plan.rounds;
   return {
     stepsPerRound: steps.length,
@@ -59,7 +64,7 @@ export function calculatePlanStats(plan: WorkoutPlan, catalog: ExerciseDefinitio
     totalReps,
     timedSecondsPerRound,
     volumeKg: loadedRepsPerRound * plan.rounds * plan.weightKg,
-    estimatedSeconds: Math.round(estimatedWorkSecondsPerRound * plan.rounds + Math.max(0, plan.rounds - 1) * plan.restSeconds)
+    estimatedSeconds: steps.length ? Math.round(3 + estimatedWorkSecondsPerRound * plan.rounds + Math.max(0, plan.rounds - 1) * plan.restSeconds + switchCount * (autoTiming?.transitionSeconds ?? 0)) : 0
   };
 }
 

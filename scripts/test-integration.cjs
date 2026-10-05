@@ -23,6 +23,9 @@ function harness(fn){const h={slots:[],effects:[],cursor:0,dirty:false,value:nul
 async function settle(h){for(let i=0;i<40;i++){await Promise.resolve();if(h?.dirty)h.render();}}
 (async()=>{
  const {WorkoutProvider}=load('src/context/WorkoutContext.tsx');const provider=harness(()=>WorkoutProvider({children:null}));await settle(provider);
+ // Setup must not report success when settings cannot be saved.
+ failKeys.add('kb.settings.v4');assert.equal(await provider.value.updateSettings({onboardingComplete:true}),false);await settle(provider);assert.equal(provider.value.settings.onboardingComplete,false);
+ failKeys.clear();assert.equal(await provider.value.updateSettings({onboardingComplete:true}),true);await settle(provider);assert.equal(provider.value.settings.onboardingComplete,true);
  const input={name:'A',category:'Strength',mode:'reps',value:10,unilateral:false,equipment:'bodyweight'};
  await Promise.all([provider.value.addCustomExercise(input),provider.value.addCustomExercise({...input,name:'B'})]);await settle(provider);
  assert.equal(provider.value.customExercises.length,2);assert.equal(provider.value.plan.items.length,2);

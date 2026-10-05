@@ -90,7 +90,7 @@ for (const preset of PRESETS) {
   const expectedTime = preset.items.reduce((sum, item) => sum + (item.mode === 'time' ? item.value * (byId.get(item.exerciseId).unilateral ? 2 : 1) : 0), 0) * preset.rounds;
   const stats = calculatePlanStats(preview, BASE_EXERCISES);
   assert.equal(stats.totalReps, expectedReps);
-  assert.equal(stats.estimatedSeconds, Math.round(expectedReps * 2.6 + expectedTime + (preset.rounds - 1) * preset.restSeconds));
+  assert.equal(stats.estimatedSeconds, Math.round(3 + expectedReps * 2.6 + expectedTime + (preset.rounds - 1) * preset.restSeconds));
   assert.equal(stats.volumeKg, preset.equipment === 'bodyweight' ? 0 : expectedReps * 18);
   let run = tickSession(createSession(loaded, BASE_EXERCISES, false, 1000), 4000);
   let guard = 0;
