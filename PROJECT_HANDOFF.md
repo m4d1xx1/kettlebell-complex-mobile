@@ -4,6 +4,19 @@ Last updated: 2026-10-05
 Repository: https://github.com/m4d1xx1/kettlebell-complex-mobile
 Authoritative branch: `main`
 
+## Latest draft audit (2026-10-05)
+
+- Paused/manual-wait sessions no longer render or write checkpoints at 30 Hz.
+  The next action still accounts for the entire idle interval as pause time.
+- Rep entry reads the synchronous paused session, preventing a deadline from
+  opening the previous exercise's form. Invalid/stale rep actions report failure.
+- Done-screen exit waits for durable result storage and checkpoint acknowledgement;
+  failed saves require retry rather than silently leaving the results screen.
+- Android back handling subscribes once, and history comparisons run only at completion.
+- Typecheck, core and integration checks pass, including idle checkpoint stability
+  and automatic-deadline rep entry. Native device, audio, accessibility font scaling
+  and real launcher branding still need a phone acceptance pass.
+
 ## Latest decision — system-driven monochrome (2026-10-05)
 
 The user explicitly replaced the earlier lime/cyan/coral rule with a black-and-white

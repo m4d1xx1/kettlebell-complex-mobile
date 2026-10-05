@@ -61,7 +61,7 @@ export default function WorkoutScreen() {
   const [pendingSave, setPendingSave] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const saved = savedId === session?.id;
-  const comparisonResult = session ? compareWork(session, history) : null;
+  const comparisonResult = useMemo(() => session?.phase === 'done' ? compareWork(session, history) : null, [session?.phase === 'done' ? session : null, history]);
   const previous = comparisonResult?.previous;
 
   const hapticSuccess = () => { if (settings.haptics) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined); };
@@ -101,14 +101,23 @@ export default function WorkoutScreen() {
   }
   function enterReps(ending = false) {
     if (!session || phase !== 'exercise' || step.mode !== 'reps') return;
-    engine.act('pause');
-    setRepEntry({stepKey:step.stepKey,round:session.round,name:`${step.exercise.name}${sideLabel(step) ? ` · ${sideLabel(step)}` : ''}`,target:step.value,ending});
+    if (!engine.act('pause')) return;
+    const frozen = engine.getSession();
+    const frozenStep = frozen?.steps[frozen.index];
+    if (!frozen || frozen.phase !== 'exercise' || frozenStep?.mode !== 'reps') {
+      if (ending) engine.act('finish-partial');
+      return;
+    }
+    setRepEntry({stepKey:frozenStep.stepKey,round:frozen.round,name:`${frozenStep.exercise.name}${sideLabel(frozenStep) ? ` · ${sideLabel(frozenStep)}` : ''}`,target:frozenStep.value,ending});
   }
   function advance() { engine.act('next'); }
   async function resetWorkout() { if (!saved) return; try { await engine.discard(); setSavedId(null); setSaveError(null); } catch {} }
   function endWorkout() {
     if (!session) { router.replace('/'); return; }
-    if (phase === 'done') { router.replace('/'); return; }
+    if (phase === 'done') {
+      if (!saved) { Alert.alert('Workout not saved yet', saveError ? 'Retry saving before leaving this screen.' : 'Please wait while your workout is saved.'); return; }
+      router.replace('/'); return;
+    }
     engine.act('pause');
     Alert.alert('End workout?', 'Save recorded work or discard this session. For a rep exercise you can enter the reps completed before saving.', [
       { text: 'Continue', style: 'cancel', onPress: () => engine.act('resume') },
@@ -116,7 +125,9 @@ export default function WorkoutScreen() {
       { text: 'Discard', style: 'destructive', onPress: () => { void engine.discard().then(() => router.replace('/')).catch(() => undefined); } }
     ]);
   }
-  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { endWorkout(); return true; }); return () => sub.remove(); });
+  const endWorkoutRef = useRef(endWorkout);
+  endWorkoutRef.current = endWorkout;
+  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { endWorkoutRef.current(); return true; }); return () => sub.remove(); }, []);
   const togglePause = () => engine.act(paused ? 'resume' : 'pause');
   const saveNotice = engine.error || saveError ? <View style={styles.compare}><Text style={styles.safety}>{saveError ?? engine.error}</Text><PrimaryButton compact label="Retry saving" onPress={() => { if (phase === 'done') void saveResult(); else void engine.retrySave().catch(() => undefined); }}/></View> : null;
 
