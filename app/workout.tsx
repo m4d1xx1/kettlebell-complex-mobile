@@ -1,4 +1,5 @@
 import { remainingReps } from '../src/workout/repTiming';
+import { timingFromSettings } from '../src/workout/timing';
 import { APP_NAME } from '../src/brand';
 import * as Haptics from 'expo-haptics';
 import { Asset, requestPermissionsAsync } from 'expo-media-library';
@@ -38,7 +39,7 @@ export default function WorkoutScreen() {
   const plan = session?.plan ?? draft;
   const roundSteps = useMemo(() => session?.steps ?? buildRoundSteps(draft, exercises), [session?.steps, draft, exercises]);
   const actual = session ? sessionSummary(session) : null;
-  const stats = actual ?? calculatePlanStats(plan, exercises);
+  const stats = actual ?? calculatePlanStats(plan, exercises, timingFromSettings(settings));
   const bodyweightSummary = actual?.bodyweight ?? calculateBodyweightSummary(plan, exercises);
   const hasKettlebell = roundSteps.some(item => item.exercise.equipment !== 'bodyweight');
   const bodyweightOnly = roundSteps.length > 0 && !hasKettlebell;
@@ -94,7 +95,7 @@ export default function WorkoutScreen() {
   }
   useEffect(() => { if (phase === 'done') void saveResult(); }, [phase, session?.id]);
   async function startWorkout() {
-    try { await engine.start(draft, exercises, settings.manualContinueAfterRest, (settings.autoAdvanceExercises ?? true) ? { secondsPerRep: settings.secondsPerRep ?? 3, transitionSeconds: settings.transitionSeconds ?? 5 } : undefined); }
+    try { await engine.start(draft, exercises, settings.manualContinueAfterRest, timingFromSettings(settings)); }
     catch (error) { Alert.alert('Cannot start workout', error instanceof Error ? error.message : 'Review your workout and try again.'); }
   }
   function enterReps(ending = false) {
@@ -194,7 +195,7 @@ export default function WorkoutScreen() {
           <Text style={styles.safety}>{(settings.autoAdvanceExercises ?? true) ? 'Follow the animation: each completed repetition counts down. Reps are guided, not detected. Adjust the pace in Settings.' : 'Timed exercises still advance automatically.'}</Text>
           <Pressable onPress={() => router.push('/settings')} style={styles.textButton}><Text style={styles.textButtonText}>Change timer settings</Text></Pressable>
         </View>
-        <WorkoutOverview plan={plan} steps={roundSteps} manualRest={settings.manualContinueAfterRest} autoTiming={(settings.autoAdvanceExercises ?? true) ? { secondsPerRep: settings.secondsPerRep ?? 3, transitionSeconds: settings.transitionSeconds ?? 5 } : undefined}/>
+        <WorkoutOverview plan={plan} steps={roundSteps} manualRest={settings.manualContinueAfterRest} autoTiming={timingFromSettings(settings)}/>
         <View style={styles.bottom}>
           {saveNotice}
           <PrimaryButton label={t('startCountdown')} onPress={startWorkout}/>

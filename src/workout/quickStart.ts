@@ -1,6 +1,7 @@
 import { ExerciseDefinition, WorkoutPlan } from '../types';
 import { calculatePlanStats } from './steps';
-export function quickStartPlan(equipment: 'kettlebell' | 'bodyweight', minutes: number, level: 'Beginner' | 'Intermediate', goal: 'Strength' | 'Conditioning', weightKg: number, catalog: ExerciseDefinition[]): WorkoutPlan {
+import type { AutoTiming } from './session';
+export function quickStartPlan(equipment: 'kettlebell' | 'bodyweight', minutes: number, level: 'Beginner' | 'Intermediate', goal: 'Strength' | 'Conditioning', weightKg: number, catalog: ExerciseDefinition[], autoTiming?: AutoTiming): WorkoutPlan {
   const advanced = level === 'Intermediate';
   const conditioning = goal === 'Conditioning';
   const ids = equipment === 'bodyweight'
@@ -17,7 +18,11 @@ export function quickStartPlan(equipment: 'kettlebell' | 'bodyweight', minutes: 
         value: exercise.defaultMode === 'time' ? advanced ? 35 : 20 : conditioning ? advanced ? 12 : 10 : advanced ? 8 : 6,
         side: exercise.unilateral ? 'both' : 'alternate' };
     }) };
-  const work = calculatePlanStats(plan,catalog).estimatedSeconds;
-  plan.rounds = Math.min(30,Math.max(1,Math.round((minutes * 60 + plan.restSeconds) / (work + plan.restSeconds))));
+  // Choose the closest whole-round prescription using the same clock as preview.
+  let closest = Infinity;
+  for (let rounds = 1; rounds <= 30; rounds++) {
+    const difference = Math.abs(calculatePlanStats({ ...plan, rounds }, catalog, autoTiming).estimatedSeconds - minutes * 60);
+    if (difference < closest) { closest = difference; plan.rounds = rounds; }
+  }
   return plan;
 }

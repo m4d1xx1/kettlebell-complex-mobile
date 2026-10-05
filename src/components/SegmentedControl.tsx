@@ -7,8 +7,8 @@ export function SegmentedControl<T extends string>({ value, options, onChange }:
       {options.map((option) => {
         const active = option.value === value;
         return (
-          <Pressable key={option.value} onPress={() => onChange(option.value)} style={[styles.segment, active && styles.active]}>
-            <Text numberOfLines={1} style={[styles.label, active && styles.activeLabel]}>{option.label}</Text>
+          <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: active }} onPress={() => onChange(option.value)} style={[styles.segment, active && styles.active]}>
+            <Text style={[styles.label, active && styles.activeLabel]}>{option.label}</Text>
           </Pressable>
         );
       })}
@@ -17,9 +17,9 @@ export function SegmentedControl<T extends string>({ value, options, onChange }:
 }
 
 const styles = StyleSheet.create({
-  wrap: { flexDirection: 'row', padding: 3, backgroundColor: colors.panel, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
-  segment: { flex: 1, minHeight: 34, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', padding: 3, backgroundColor: colors.panel, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  segment: { flexGrow: 1, flexBasis: 56, minHeight: 44, paddingHorizontal: 8, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
   active: { backgroundColor: colors.elevated },
-  label: { color: colors.muted, fontSize: 12, fontWeight: '800' },
+  label: { color: colors.muted, fontSize: 12, fontWeight: '800', textAlign: 'center' },
   activeLabel: { color: colors.text }
 });

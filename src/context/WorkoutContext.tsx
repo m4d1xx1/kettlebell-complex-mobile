@@ -71,7 +71,7 @@ type ContextValue = {
   applyProfileDefaults: () => void;
   addCustomExercise: (input: { name: string; category: ExerciseCategory; mode: ExerciseMode; value: number; unilateral: boolean; equipment?: 'kettlebell' | 'bodyweight' }) => Promise<boolean>;
   toggleExerciseFavorite: (id: string) => Promise<void>;
-  updateSettings: (patch: Partial<AppSettings>) => Promise<void>;
+  updateSettings: (patch: Partial<AppSettings>) => Promise<boolean>;
   pendingHistory: WorkoutHistoryEntry[];
   retryPending: () => Promise<void>;
   recoverHistory: () => Promise<void>;
@@ -278,8 +278,8 @@ export function WorkoutProvider({ children }: PropsWithChildren) {
   };
 
   const updateSettings = async (patch: Partial<AppSettings>) => {
-    try { setSettings(await updateStored(SETTINGS_KEY, settings, validSettings, current => ({ ...defaultSettings, ...current, ...patch }))); }
-    catch (error) { notifyStorage(error); }
+    try { setSettings(await updateStored(SETTINGS_KEY, settings, validSettings, current => ({ ...defaultSettings, ...current, ...patch }))); return true; }
+    catch (error) { notifyStorage(error); return false; }
   };
 
   const completeWorkout = async (input: Omit<WorkoutHistoryEntry, 'id' | 'completedAt'> & { completedAt?: string }): Promise<'history' | 'pending'> => {

@@ -79,6 +79,7 @@ export default function HistoryScreen() {
               <Stat label={t('reps').toUpperCase()} value={String(summary.totalReps)}/>
               <Stat label={t('load')} value={`${Math.round(summary.totalVolume / 100) / 10}t`}/>
             </View>
+            {history.some(entry => entry.results?.some(result => result.estimatedReps)) && <Text style={styles.muted}>Rep and load totals include guided estimates, not measured repetitions.</Text>}
 
             <View style={styles.weekCard}>
               <View>

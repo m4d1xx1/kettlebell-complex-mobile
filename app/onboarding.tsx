@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandMark } from '../src/components/BrandMark';
@@ -18,11 +18,15 @@ export default function OnboardingScreen() {
   const [soundCues, setSoundCues] = useState(settings.soundCues);
   const [voiceCues, setVoiceCues] = useState(settings.voiceCues);
   const [haptics, setHaptics] = useState(settings.haptics);
+  const finishing = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   const t = (key: Parameters<typeof translate>[1]) => translate('en', key);
 
   async function finish() {
-    await updateSettings({
+    if (finishing.current) return;
+    finishing.current = true; setSaving(true);
+    const didSave = await updateSettings({
       uiLanguage: 'en',
       voiceLanguage: 'en-US',
       onboardingComplete: true,
@@ -33,6 +37,8 @@ export default function OnboardingScreen() {
       voiceCues,
       haptics
     });
+    finishing.current = false; setSaving(false);
+    if (!didSave) return;
     setPlan((p) => ({ ...p, weightKg: weight, rounds, restSeconds: rest }));
     router.replace('/');
   }
@@ -95,7 +101,7 @@ export default function OnboardingScreen() {
             </Pressable>
           ) : <View/>}
           <View style={{ flex: 1 }}>
-            <PrimaryButton label={step === 2 ? t('finishSetup') : t('continue')} onPress={() => step === 2 ? finish() : setStep((x) => x + 1)}/>
+            <PrimaryButton disabled={saving} label={saving ? 'Saving…' : step === 2 ? t('finishSetup') : t('continue')} onPress={() => step === 2 ? finish() : setStep((x) => x + 1)}/>
           </View>
         </View>
       </View>

@@ -76,12 +76,33 @@ const {validSettings}=load('src/storage/validation.ts');
 assert.equal(validSettings({autoAdvanceExercises:true,secondsPerRep:3,transitionSeconds:5}),true);
 assert.equal(validSettings({secondsPerRep:NaN}),false);assert.equal(validSettings({transitionSeconds:1.5}),false);
 const { quickStartPlan } = load('src/workout/quickStart.ts');
+const { calculatePlanStats } = load('src/workout/steps.ts');
+const { timingFromSettings } = load('src/workout/timing.ts');
+assert.equal(timingFromSettings({autoAdvanceExercises:false}),undefined);
+assert.equal(JSON.stringify(timingFromSettings({})),JSON.stringify(timing));
+// Every automatic estimate must reach done on the same deadline as the runner.
+for (const restSeconds of [0,5,60]) for (const rounds of [1,3]) for (const transitionSeconds of [0,5,60]) {
+  const p={...sided,rounds,restSeconds};
+  const pace={secondsPerRep:3.5,transitionSeconds};
+  const duration=calculatePlanStats(p,BASE_EXERCISES,pace).estimatedSeconds;
+  const run=createSession(p,BASE_EXERCISES,false,0,pace);
+  assert.notEqual(tickSession(run,duration*1000-1).phase,'done');
+  assert.equal(tickSession(run,duration*1000).phase,'done');
+}
+assert.equal(calculatePlanStats({...plan,items:[]},BASE_EXERCISES,timing).estimatedSeconds,0);
 for (const equipment of ['kettlebell','bodyweight']) for (const minutes of [10,15,20]) for (const level of ['Beginner','Intermediate']) for (const goal of ['Strength','Conditioning']) {
   const quick = quickStartPlan(equipment,minutes,level,goal,16,BASE_EXERCISES);
   assert.equal(validPlan(quick),true);
   const run = createSession(quick,BASE_EXERCISES,false,Date.now());
   assert.equal(validSession(run),true);
   assert.ok(run.steps.every(step => (step.exercise.equipment ?? 'kettlebell') === equipment));
+  for (const pace of [timing,{secondsPerRep:10,transitionSeconds:60}]) {
+    const guided=quickStartPlan(equipment,minutes,level,goal,16,BASE_EXERCISES,pace);
+    const duration=calculatePlanStats(guided,BASE_EXERCISES,pace).estimatedSeconds;
+    const error=Math.abs(duration-minutes*60);
+    for(let rounds=1;rounds<=30;rounds++) assert.ok(error<=Math.abs(calculatePlanStats({...guided,rounds},BASE_EXERCISES,pace).estimatedSeconds-minutes*60));
+    assert.equal(tickSession(createSession(guided,BASE_EXERCISES,false,0,pace),duration*1000).phase,'done');
+  }
 }
 // Every phase/transition must remain recoverable after serialization.
 for (const manual of [false,true]) {
