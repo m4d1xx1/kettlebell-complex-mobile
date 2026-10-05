@@ -6,6 +6,13 @@ Authoritative branch: `main`
 
 ## Latest draft audit (2026-10-05)
 
+- Second pass: saved-workout loading and history repeat confirm before replacing
+  a nonempty builder. Saved deletion requires confirmation; history is retained.
+- Saved cards label bodyweight plans as Bodyweight instead of displaying a
+  misleading external weight. Pin/delete/history controls have 44-point minimum
+  touch targets and named accessibility actions. Optional stepper haptic failures
+  are caught. Regression tests exercise saved load cancellation/confirmation,
+  bodyweight labelling and confirmed deletion.
 - Paused/manual-wait sessions no longer render or write checkpoints at 30 Hz.
   The next action still accounts for the entire idle interval as pause time.
 - Rep entry reads the synchronous paused session, preventing a deadline from

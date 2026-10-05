@@ -8,7 +8,7 @@ payments, main merge or production deployment in this change.
 
 Help time-constrained people returning to training complete a short, understandable
 session with one kettlebell, with bodyweight as a fallback. Existing English UI and
-lime/cyan identity stay. The promise to test is less setup and less interaction
+system-driven monochrome identity stay (later user decision supersedes lime/cyan). The promise to test is less setup and less interaction
 during a workout, not AI coaching, detected reps, rehabilitation or a unique timer.
 
 Official public evidence checked 2026-10-05:
@@ -40,6 +40,14 @@ DAYBRAVE demand. No pricing or subscriber forecasts should be inferred.
 7. History aggregate totals disclose guided/estimated reps if present.
 
 ## Remaining backlog, ordered by risk and learning value
+
+Latest draft audit: paused/manual-wait sessions stop frame updates and recurring
+writes, stale rep forms use the synchronous paused step, completion exit waits
+for durable saving, Android back subscriptions remain stable, and comparisons
+are deferred until completion. Saved/history loading now protects a nonempty
+builder with confirmation; saved deletion requires confirmation. Saved bodyweight
+cards use an equipment label, and saved/history action targets are at least 44pt.
+These checks address code and interaction defects, not established market demand.
 
 | Priority | Finding / evidence | Next action / acceptance |
 | --- | --- | --- |

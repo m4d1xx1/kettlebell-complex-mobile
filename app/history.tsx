@@ -18,7 +18,7 @@ function startOfLocalDay(date: Date) {
 
 export default function HistoryScreen() {
   const { colors, styles } = useThemeStyles(createStyles);
-  const { history, pendingHistory, retryPending, recoverHistory, clearHistory, loadHistoryPlan } = useWorkout();
+  const { history, plan, pendingHistory, retryPending, recoverHistory, clearHistory, loadHistoryPlan } = useWorkout();
   const [dataTools, setDataTools] = useState(false);
   const [detail, setDetail] = useState<WorkoutHistoryEntry | null>(null);
   const { t, locale } = useI18n();
@@ -118,7 +118,7 @@ export default function HistoryScreen() {
           <View style={styles.card}>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>{item.planName}</Text>
-              {item.results && <Pressable onPress={() => setDetail(item)}><Text style={styles.small}>View exercise results ›</Text></Pressable>}
+              {item.results && <Pressable accessibilityRole="button" accessibilityLabel={`View results for ${item.planName}`} style={styles.resultsButton} onPress={() => setDetail(item)}><Text style={styles.small}>View exercise results ›</Text></Pressable>}
               {item.status === 'partial' && <Text style={{color:colors.warning,fontSize:12}}>Partial workout · recorded work only</Text>}
               {item.timeBasis && <Text style={styles.small}>Work {formatDuration(item.workSeconds ?? 0)} · Rest {formatDuration(item.restSeconds ?? 0)} · Paused {formatDuration(item.pauseSeconds ?? 0)}</Text>}
               <Text style={styles.muted}>{new Date(item.completedAt).toLocaleString(locale)}</Text>
@@ -128,7 +128,11 @@ export default function HistoryScreen() {
               <Text style={styles.metric}>{formatDuration(item.durationSeconds)}</Text>
               <Text style={styles.small}>{item.totalReps} {t('reps').toLowerCase()} · {Math.round(item.volumeKg / 100) / 10}t</Text>
               {item.plan ? (
-                <Pressable style={styles.repeat} onPress={() => { if (loadHistoryPlan(item.id)) router.replace('/'); }}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Repeat ${item.planName}`} style={styles.repeat} onPress={() => {
+                  const apply = () => { if(loadHistoryPlan(item.id))router.replace('/'); };
+                  if (plan.items.length) Alert.alert('Replace current plan?', `Load ${item.planName} in the builder? Review the targets before starting. Your current unsaved builder plan will be replaced.`, [{text:'Cancel',style:'cancel'},{text:'Load workout',onPress:apply}]);
+                  else apply();
+                }}>
                   <Text style={styles.repeatText}>{t('repeat')}</Text>
                 </Pressable>
               ) : null}
@@ -182,9 +186,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   metrics: { alignItems: 'flex-end', gap: 2 },
   metric: { color: colors.text, fontWeight: '900', fontSize: 17 },
   small: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  repeat: { marginTop: 5, minHeight: 34, paddingHorizontal: 11, borderRadius: 17, backgroundColor: colors.accentSoft, justifyContent: 'center' },
+  resultsButton: { minHeight: 44, justifyContent: 'center' },
+  repeat: { marginTop: 5, minHeight: 44, minWidth: 44, paddingHorizontal: 11, borderRadius: 17, backgroundColor: colors.accentSoft, justifyContent: 'center' },
   repeatText: { color: colors.accent, fontSize: 11, fontWeight: '900' },
-  clear: { minHeight: 40, alignItems: 'flex-end', justifyContent: 'center' },
+  clear: { minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
   clearText: { color: colors.danger, fontWeight: '800', fontSize: 12 },
   empty: { padding: 24, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', borderRadius: radius.lg, gap: 5 },
   emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '900' }

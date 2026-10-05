@@ -6,7 +6,7 @@ import { clamp } from '../utils/format';
 export function NumberStepper({ label, value, min, max, step = 1, suffix, onChange, haptics = true }: { label: string; value: number; min: number; max: number; step?: number; suffix?: string; onChange: (value: number) => void; haptics?: boolean }) {
   const { colors, styles } = useThemeStyles(createStyles);
   const adjust = (delta: number) => {
-    if (haptics) Haptics.selectionAsync();
+    if (haptics) void Haptics.selectionAsync().catch(() => undefined);
     onChange(clamp(value + delta, min, max));
   };
   return (

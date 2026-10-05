@@ -22,7 +22,7 @@ const react = {
 };
 react.default = react;
 const storage = { getItem: async key => memory.get(key) ?? null, setItem: async (key, value) => { memory.set(key, value); }, removeItem: async key => { memory.delete(key); } };
-const native = { useColorScheme: () => 'dark', Alert: { alert: (...args) => alerts.push(args) }, StyleSheet: { create: value => value }, Pressable: 'Pressable', Text: 'Text', View: 'View', ScrollView: 'ScrollView' };
+const native = { useColorScheme: () => 'dark', Alert: { alert: (...args) => alerts.push(args) }, StyleSheet: { create: value => value }, FlatList: 'FlatList', Pressable: 'Pressable', Text: 'Text', View: 'View', ScrollView: 'ScrollView' };
 function load(file) {
   file = path.resolve(root, file);
   if (cache.has(file)) return cache.get(file);
@@ -31,7 +31,7 @@ function load(file) {
   vm.runInNewContext(code, { exports, require: id => {
     if (id === 'react') return react;
     if (id === 'react-native') return native;
-    if (id === 'expo-router') return { router: { push: value => routes.push(value) } };
+    if (id === 'expo-router') return { router: { push: value => routes.push(value), replace: value => routes.push(value) } };
     if (id === '@react-native-async-storage/async-storage') return { __esModule: true, default: storage };
     const next = path.resolve(path.dirname(file), id);
     return load(fs.existsSync(next + '.ts') ? next + '.ts' : next + '.tsx');
@@ -187,6 +187,18 @@ for (const preset of PRESETS) {
   find(picker, node => node.props?.accessibilityLabel === 'Use Bodyweight Basics').props.onPress(); await settle(provider);
   assert.equal(alerts.length, 2, 'An empty builder loads without unnecessary confirmation');
   assert.equal(provider.value.plan.name, 'Bodyweight Basics');
-  picker.unmount(); provider.unmount();
+  // Saved cards must preserve a builder draft until replacement is confirmed.
+  await provider.value.saveCurrent();await settle(provider);
+  const savedItem=provider.value.saved[0];provider.value.loadPreset('swing');await settle(provider);
+  const draftBeforeLoad=serial(provider.value.plan);
+  const SavedScreen=load('app/saved.tsx').default;const savedScreen=harness(()=>SavedScreen());
+  const row=find(savedScreen,node=>node.type==='FlatList').props.renderItem({item:savedItem});
+  const loadButton=nodes(row).find(node=>node.props?.accessibilityLabel===`Load ${savedItem.name}`);
+  loadButton.props.onPress();assert.equal(serial(provider.value.plan),draftBeforeLoad);
+  alerts.at(-1)[2].find(button=>button.text==='Replace').onPress();await settle(provider);assert.equal(provider.value.plan.name,savedItem.name);assert.equal(routes.at(-1),'/');
+  assert.ok(nodes(row).some(node=>node.type==='Text'&&node.props.children.flat(Infinity).includes('Bodyweight')),'Saved bodyweight plan has no kg label');
+  nodes(row).find(node=>node.props?.accessibilityLabel===`Delete ${savedItem.name}`).props.onPress();assert.equal(provider.value.saved.length,1,'Delete confirmation preserves the saved workout');
+  await alerts.at(-1)[2].find(button=>button.text==='Delete').onPress();await settle(provider);assert.equal(provider.value.saved.length,0);
+  savedScreen.unmount();picker.unmount(); provider.unmount();
   console.log(`PASS: ${PRESETS.length} template prescriptions, side-aware estimates, complete recoverable sessions, provider defaults/first-kettlebell load transitions, immutable catalogue, draft-safe preview/confirmation and bodyweight summaries.`);
 })().catch(error => { console.error(error); process.exitCode = 1; });
