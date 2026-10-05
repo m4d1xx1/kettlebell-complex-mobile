@@ -2,9 +2,10 @@ import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useI18n } from '../src/i18n';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 
 export default function SavedScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const { saved, loadSaved, deleteSaved, toggleSavedFavorite } = useWorkout();
   const { t, locale } = useI18n();
   const data = [...saved].sort((a, b) => Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)) || b.savedAt.localeCompare(a.savedAt));
@@ -50,7 +51,7 @@ export default function SavedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   header: { gap: 4, marginBottom: 10 },

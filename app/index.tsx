@@ -15,12 +15,13 @@ import { SegmentedControl } from '../src/components/SegmentedControl';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { categoryLabel, useI18n } from '../src/i18n';
 import { ComplexItem, ExerciseMode, SideMode } from '../src/types';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 import { calculatePlanStats } from '../src/workout/steps';
 import { formatDuration } from '../src/utils/format';
 import { timingFromSettings } from '../src/workout/timing';
 
 export default function BuilderScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const {
     hydrated, plan, setPlan, exercises, reorderItems, removeItem, updateItem,
     saveCurrent, settings, applyProfileDefaults
@@ -69,7 +70,7 @@ export default function BuilderScreen() {
             <View style={styles.itemTitleRow}>
               <Pressable accessibilityRole="button" accessibilityLabel={`View ${exercise.name}`} style={styles.itemTitleText} onPress={() => router.push({ pathname: '/exercise-detail', params: { id: exercise.id } })}>
                 <Text style={styles.itemName}>{index + 1}. {exercise.name}</Text>
-                <Text style={[styles.itemCategory, exercise.equipment === 'bodyweight' && styles.bodyweightText]}>{exercise.equipment === 'bodyweight' ? 'Bodyweight · ' : ''}{categoryLabel(language, exercise.category)}</Text>
+                <Text style={styles.itemCategory}>{exercise.equipment === 'bodyweight' ? 'Bodyweight' : 'Kettlebell'} · {categoryLabel(language, exercise.category)}</Text>
               </Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${exercise.name}`} onPress={() => removeItem(item.key)} style={styles.deleteButton}>
                 <Text style={styles.deleteText}>×</Text>
@@ -114,7 +115,7 @@ export default function BuilderScreen() {
           <View style={styles.hero}>
             <View style={{ flex: 1, minWidth: 200 }}>
               <BrandMark compact/>
-              <TextInput accessibilityLabel="Workout name" value={plan.name} onChangeText={(name) => setPlan((p) => ({ ...p, name }))} maxLength={40} style={styles.nameInput}/>
+              <TextInput selectionColor={colors.muted} cursorColor={colors.text} accessibilityLabel="Workout name" value={plan.name} onChangeText={(name) => setPlan((p) => ({ ...p, name }))} maxLength={40} style={styles.nameInput}/>
             </View>
             <View style={styles.topActions}>
               <Pressable onPress={() => router.push('/history')} style={styles.topButton}><Text style={styles.topButtonText}>{t('history')}</Text></Pressable>
@@ -200,7 +201,7 @@ export default function BuilderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, backgroundColor: colors.bg, gap: 10, paddingBottom: 30 },
   headerBlock: { gap: 16, marginBottom: 10 },

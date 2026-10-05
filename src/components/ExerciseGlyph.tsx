@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
+import { useThemeStyles, ThemeColors } from '../theme';
 import { ExerciseVisual, SideMode } from '../types';
 import { PoseExerciseFigure } from './PoseExerciseFigure';
 
@@ -13,6 +13,7 @@ export function ExerciseGlyph({ visual, exerciseId, size = 62, animated = false,
   hero?: boolean;
   equipment?: 'kettlebell' | 'bodyweight';
 }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   const isBodyweight = equipment === 'bodyweight';
   const accent = isBodyweight ? colors.bodyweight : colors.accent;
   return (
@@ -21,7 +22,7 @@ export function ExerciseGlyph({ visual, exerciseId, size = 62, animated = false,
     </View>
   );
 }
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   wrap: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
   bodyweightWrap: { backgroundColor: colors.bodyweightSoft, borderColor: colors.bodyweight },
   heroWrap: { backgroundColor: 'transparent', borderWidth: 0 }

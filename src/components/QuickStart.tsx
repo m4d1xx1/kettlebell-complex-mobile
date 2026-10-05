@@ -4,11 +4,12 @@ import { useWorkout } from '../context/WorkoutContext';
 import { quickStartPlan } from '../workout/quickStart';
 import { calculatePlanStats } from '../workout/steps';
 import { formatDuration } from '../utils/format';
-import { colors } from '../theme';
+import { useThemeColors } from '../theme';
 import { Dropdown } from './Dropdown';
 import { PrimaryButton } from './PrimaryButton';
 import { timingFromSettings } from '../workout/timing';
 export function QuickStart() {
+  const colors = useThemeColors();
   const { exercises, settings, plan, setPlan, dismissUndo } = useWorkout();
   const [open,setOpen] = useState(plan.items.length === 0);
   const [equipment,setEquipment] = useState<'kettlebell'|'bodyweight'>('kettlebell');

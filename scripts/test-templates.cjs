@@ -22,7 +22,7 @@ const react = {
 };
 react.default = react;
 const storage = { getItem: async key => memory.get(key) ?? null, setItem: async (key, value) => { memory.set(key, value); }, removeItem: async key => { memory.delete(key); } };
-const native = { Alert: { alert: (...args) => alerts.push(args) }, StyleSheet: { create: value => value }, Pressable: 'Pressable', Text: 'Text', View: 'View', ScrollView: 'ScrollView' };
+const native = { useColorScheme: () => 'dark', Alert: { alert: (...args) => alerts.push(args) }, StyleSheet: { create: value => value }, Pressable: 'Pressable', Text: 'Text', View: 'View', ScrollView: 'ScrollView' };
 function load(file) {
   file = path.resolve(root, file);
   if (cache.has(file)) return cache.get(file);

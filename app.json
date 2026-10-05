@@ -5,9 +5,10 @@
     "scheme": "kettlebellcomplex",
     "version": "0.5.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
+      "expo-system-ui",
       [
         "expo-media-library",
         {

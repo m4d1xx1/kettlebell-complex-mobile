@@ -19,13 +19,14 @@ import { useWorkout } from '../src/context/WorkoutContext';
 import { useWorkoutCues } from '../src/hooks/useWorkoutCues';
 import { useWorkoutSession } from '../src/hooks/useWorkoutSession';
 import { useI18n } from '../src/i18n';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 import { buildRoundSteps, calculateBodyweightSummary, calculatePlanStats, WorkoutStep } from '../src/workout/steps';
 import { compareWork } from '../src/workout/comparison';
 import { remainingSeconds, sessionSummary } from '../src/workout/session';
 import { formatDuration } from '../src/utils/format';
 
 export default function WorkoutScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   useKeepAwake();
   const { width, height, fontScale } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -342,8 +343,8 @@ export default function WorkoutScreen() {
         <Text style={styles.unit}>{step.mode === 'reps' ? (autoReps ? 'reps left' : t('reps').toLowerCase()) : t('seconds')}</Text>
         {autoReps && <Text style={styles.next}>Follow the movement · {session?.autoTiming?.secondsPerRep}s per rep</Text>}
         {step.exercise.equipment !== 'bodyweight' ? (
-          <View style={styles.weightPill}><Text style={styles.weightText}>{plan.weightKg} kg</Text></View>
-        ) : null}
+          <View style={styles.weightPill}><Text style={styles.weightText}>Kettlebell · {plan.weightKg} kg</Text></View>
+        ) : <View style={styles.weightPill}><Text style={styles.weightText}>Bodyweight</Text></View>}
         {nextStepText(stepIndex, roundSteps, round, plan.rounds, t('next'), t('roundRest'), sideLabel) ? (
           <Text style={styles.nextExercise}>{nextStepText(stepIndex, roundSteps, round, plan.rounds, t('next'), t('roundRest'), sideLabel)}</Text>
         ) : null}
@@ -382,11 +383,13 @@ function nextStepText(
   return '';
 }
 
-function Progress({ value, color = colors.accent }: { value: number; color?: string }) {
-  return <View style={styles.progressTrack}><View style={[styles.progressBar, { width: `${Math.max(0, Math.min(1, value)) * 100}%`, backgroundColor: color }]}/></View>;
+function Progress({ value, color }: { value: number; color?: string }) {
+  const { colors, styles } = useThemeStyles(createStyles);
+  return <View style={styles.progressTrack}><View style={[styles.progressBar, { width: `${Math.max(0, Math.min(1, value)) * 100}%`, backgroundColor: color ?? colors.accent }]}/></View>;
 }
 
 function DoneStat({ label, value, tone = 'kettlebell' }: { label: string; value: string; tone?: 'kettlebell' | 'bodyweight' }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return (
     <View style={[styles.doneStat, tone === 'bodyweight' && styles.doneStatBodyweight]}>
       <Text style={[styles.doneStatLabel, tone === 'bodyweight' && styles.bodyweightAccent]}>{label}</Text>
@@ -395,7 +398,7 @@ function DoneStat({ label, value, tone = 'kettlebell' }: { label: string; value:
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   smallControl: { minWidth: 48, minHeight: 48, paddingHorizontal: 12, borderRadius: 24, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   workoutPage: { flex: 1, backgroundColor: colors.bg },
   readyPage: { flex: 1, backgroundColor: colors.bg },

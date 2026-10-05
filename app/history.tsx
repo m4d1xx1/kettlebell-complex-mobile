@@ -7,7 +7,7 @@ import { Alert, Share, Modal, ScrollView, FlatList, Pressable, StyleSheet, Text,
 import { useMemo, useState } from 'react';
 import { useWorkout } from '../src/context/WorkoutContext';
 import { useI18n } from '../src/i18n';
-import { colors, radius } from '../src/theme';
+import { useThemeStyles, ThemeColors, radius } from '../src/theme';
 import { formatDuration } from '../src/utils/format';
 
 function startOfLocalDay(date: Date) {
@@ -17,6 +17,7 @@ function startOfLocalDay(date: Date) {
 }
 
 export default function HistoryScreen() {
+  const { colors, styles } = useThemeStyles(createStyles);
   const { history, pendingHistory, retryPending, recoverHistory, clearHistory, loadHistoryPlan } = useWorkout();
   const [dataTools, setDataTools] = useState(false);
   const [detail, setDetail] = useState<WorkoutHistoryEntry | null>(null);
@@ -153,10 +154,11 @@ export default function HistoryScreen() {
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
+  const { colors, styles } = useThemeStyles(createStyles);
   return <View style={styles.stat}><Text style={styles.statLabel}>{label}</Text><Text style={styles.statValue}>{value}</Text></View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.bg },
   list: { padding: 16, gap: 10, paddingBottom: 40 },
   header: { gap: 14, marginBottom: 4 },
